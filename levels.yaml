@@ -1,0 +1,15 @@
+# Which levels are for training and which are held out (M8).
+# Never train on a held-out level; evaluate on them with:
+#   python -m gdrl.evaluate --run runs/<run> --levels <ids>
+
+mock:
+  # Mock level ids are generator seeds (>= 1). Every seed is beatable.
+  train: [1, 2, 3, 4, 5]
+  heldout: [101, 102, 103]
+
+game:
+  # Local GD level ids for your own unpublished, cube-only levels without
+  # random triggers. Fill these in as you build them in the editor (M7).
+  # The bridge only supports level_id 0 (the open level) until you extend RESET.
+  train: []
+  heldout: []

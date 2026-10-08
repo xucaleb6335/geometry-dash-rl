@@ -1,0 +1,16 @@
+# Random agent on the mock game. Smoke test for the GD env path.
+name: mock-random
+seed: 1
+env:
+  id: gd
+  backend: mock
+  level_ids: [1, 2, 3]
+  frame_skip: 4
+  max_steps: 2000
+  encoder: {name: debug}
+  reward: {name: constant}
+agent:
+  name: random
+train:
+  num_envs: 4
+  total_steps: 20000

@@ -1,0 +1,21 @@
+{
+	"geode": "5.10.1",
+	"gd": {
+		"win": "2.2081"
+	},
+	"id": "xucaleb6335.gd-rl-bridge",
+	"name": "GD-RL Bridge",
+	"version": "v0.1.0",
+	"developer": "xucaleb6335",
+	"description": "Exposes Geometry Dash as a lockstep reinforcement-learning environment over localhost TCP.",
+	"settings": {
+		"port": {
+			"name": "Bridge port",
+			"description": "Localhost TCP port the Python environment connects to. Restart the game after changing it.",
+			"type": "int",
+			"default": 5555,
+			"min": 1024,
+			"max": 65535
+		}
+	}
+}

@@ -1,0 +1,29 @@
+# M5 to M7 on the mock game: your encoder, your reward, your PPO.
+# Needs ObjectListEncoder, ProgressReward and PPOAgent implemented.
+name: mock-ppo
+seed: 1
+env:
+  id: gd
+  backend: mock
+  level_ids: [1, 2, 3, 4, 5]      # training levels; held-out ones live in levels.yaml
+  frame_skip: 4
+  max_steps: 2000
+  encoder: {name: object_list, k: 8}
+  reward: {name: progress, progress_scale: 1.0, death_penalty: -1.0, completion_bonus: 1.0}
+agent:
+  name: ppo
+  rollout_steps: 256
+  num_minibatches: 4
+  update_epochs: 4
+  learning_rate: 2.5e-4
+  gamma: 0.99
+  gae_lambda: 0.95
+  ent_coef: 0.01
+  hidden_sizes: [64, 64]
+  device: auto
+train:
+  num_envs: 8
+  total_steps: 2000000
+eval:
+  episodes: 20
+  sticky_prob: 0.1

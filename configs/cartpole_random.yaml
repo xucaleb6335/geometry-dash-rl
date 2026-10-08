@@ -1,0 +1,11 @@
+# Smoke test for the train loop. No learning: the random agent sets the floor.
+name: cartpole-random
+seed: 1
+env:
+  id: CartPole-v1
+agent:
+  name: random
+  rollout_steps: 128
+train:
+  num_envs: 4
+  total_steps: 20000

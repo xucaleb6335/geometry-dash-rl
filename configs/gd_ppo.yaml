@@ -1,0 +1,31 @@
+# The real game over the bridge (M7). Open your level in GD first, then:
+#   python -m gdrl.train --config configs/gd_ppo.yaml
+# One game instance, so num_envs must be 1.
+name: gd-ppo
+seed: 1
+env:
+  id: gd
+  backend: socket
+  host: 127.0.0.1
+  port: 5555
+  timeout: 30.0
+  level_ids: [0]          # 0 = the level currently open in the game
+  frame_skip: 4
+  max_steps: 5000
+  encoder: {name: object_list, k: 8}
+  reward: {name: progress}
+agent:
+  name: ppo
+  rollout_steps: 1024
+  num_minibatches: 8
+  update_epochs: 4
+  learning_rate: 2.5e-4
+  hidden_sizes: [64, 64]
+  device: auto
+train:
+  num_envs: 1
+  total_steps: 1000000
+  checkpoint_every: 10
+eval:
+  episodes: 20
+  sticky_prob: 0.1

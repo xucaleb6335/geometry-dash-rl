@@ -1,0 +1,23 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+.pytest_cache/
+
+# Training output
+runs/
+*.pt
+
+# C++ builds
+build/
+mod/build/
+mod/build-*/
+*.geode
+
+# Editors / OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db

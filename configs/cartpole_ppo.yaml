@@ -1,0 +1,23 @@
+# M6 gate: your PPO must reach an average return >= 475 on CartPole-v1,
+# on 3 seeds (--set seed=1, 2, 3). Hyperparameters follow CleanRL's ppo.py.
+name: cartpole-ppo
+seed: 1
+env:
+  id: CartPole-v1
+agent:
+  name: ppo
+  rollout_steps: 128
+  num_minibatches: 4
+  update_epochs: 4
+  learning_rate: 2.5e-4
+  gamma: 0.99
+  gae_lambda: 0.95
+  clip_coef: 0.2
+  ent_coef: 0.01
+  vf_coef: 0.5
+  max_grad_norm: 0.5
+  hidden_sizes: [64, 64]
+  device: cpu        # tiny MLP: the CPU is usually faster than the GPU here
+train:
+  num_envs: 4
+  total_steps: 500000
