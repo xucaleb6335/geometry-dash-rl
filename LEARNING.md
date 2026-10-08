@@ -60,7 +60,15 @@ once), `train/explained_variance` (rises toward 1).
 `configs/mock_ppo.yaml` trains your encoder + reward + PPO on the mock levels
 (seeds 1 to 5) and `levels.yaml` lists held-out seeds. Every mock level is
 beatable by a simple timing rule (see `scripted_jumper` in `tests/conftest.py`),
-so a policy that cannot finish them has a bug or a blind spot in the encoder.
+so a policy that cannot finish them has a bug, a blind spot in the encoder, or
+a reward that does not pay for the right thing.
+
+Expect this to be the hard part. A quick reference PPO that passed the CartPole
+gate in about 300k steps only reached 20 to 35% average progress on the mock
+within 500k steps, dying mostly by running into blocks. Levers to try, one at
+a time: the reward scale (progress vs. the death penalty), how the encoder
+marks object kind and distance, `frame_skip`, entropy, and a curriculum
+(the `mock.patterns` option in `configs/mock_ppo.yaml`).
 
 ## Rules of thumb
 

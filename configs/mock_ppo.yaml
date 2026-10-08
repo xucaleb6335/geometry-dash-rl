@@ -8,6 +8,9 @@ env:
   level_ids: [1, 2, 3, 4, 5]      # training levels; held-out ones live in levels.yaml
   frame_skip: 4
   max_steps: 2000
+  # Curriculum knob: start with easy obstacles, add the rest once completion
+  # passes ~90%. Options: spike, double_spike, triple_spike, block.
+  # mock: {patterns: [spike, double_spike], n_obstacles: 8}
   encoder: {name: object_list, k: 8}
   reward: {name: progress, progress_scale: 1.0, death_penalty: -1.0, completion_bonus: 1.0}
 agent:
