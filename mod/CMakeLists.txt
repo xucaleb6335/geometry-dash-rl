@@ -25,6 +25,11 @@ add_subdirectory($ENV{GEODE_SDK} ${CMAKE_CURRENT_BINARY_DIR}/geode)
 
 setup_geode_mod(${PROJECT_NAME})
 
+# Geode force-includes Geode.hpp as a precompiled header, which pulls in
+# windows.h (and the old winsock.h) before Bridge.cpp can include winsock2.h.
+# Bridge is Geode-free, so build it without the PCH.
+set_source_files_properties(src/Bridge.cpp PROPERTIES SKIP_PRECOMPILE_HEADERS ON)
+
 if (WIN32)
     target_link_libraries(${PROJECT_NAME} ws2_32)
 endif()

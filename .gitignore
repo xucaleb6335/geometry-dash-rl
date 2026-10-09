@@ -21,3 +21,8 @@ mod/build-*/
 .idea/
 .DS_Store
 Thumbs.db
+
+# Secrets / local settings
+.env
+*.log
+.claude/settings.local.json
