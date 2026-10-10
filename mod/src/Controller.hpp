@@ -21,7 +21,9 @@ public:
     // Called from the hooks in main.cpp.
     void onLevelStart(PlayLayer* layer);
     void onLevelExit();
-    void onTick(GJBaseGameLayer* layer);  // once per physics tick (confirm in M1)
+    void onLevelReset();                   // after any resetLevel, ours or the game's
+    void onFrameStart(GJBaseGameLayer* layer);  // before the frame's ticks run
+    void onTick(GJBaseGameLayer* layer);  // once per physics tick (confirmed in M1)
     void onDeath();                        // a real death, as decided in M2
     void onComplete();
 
@@ -34,7 +36,10 @@ private:
     void handle(const Incoming& msg);
     void handleReset(const proto::Reset& msg);
     void handleStep(const proto::Step& msg);
+    void setButton(bool down);
+    void finishStep();
     void sendCurrentState();
+    bool isTerminal() const { return m_dead || m_completed; }
 
     Bridge m_bridge;
     PlayLayer* m_layer = nullptr;
@@ -46,6 +51,11 @@ private:
     bool m_completed = false;
     bool m_holding = false;
     bool m_resetRequested = false;  // reset at the start of the next tick, never inside a hook
+
+    // The STEP in progress: reply once this many more ticks have run (or the
+    // episode ends). Without lockstep (M3) the game keeps running between steps.
+    bool m_stepPending = false;
+    uint32_t m_stepTicksLeft = 0;
 };
 
 }  // namespace gdrl

@@ -1,9 +1,9 @@
 // Hooks: the only place the mod touches the game's control flow. Each hook
 // calls the original, then tells the Controller what happened.
 //
-// Milestones: M0 (mod loads), M1 (find the per-tick hook), M2 (deaths, resets).
+// Milestones: M1 (the per-tick hook), M2 (deaths, resets), M3 (lockstep).
 // Signatures below are from Geode's bindings for GD 2.2081; if one fails to
-// compile, check $GEODE_SDK/bindings, it is part of M0.
+// compile, check the generated headers in mod/build/bindings.
 
 #include <Geode/Geode.hpp>
 #include <Geode/modify/GJBaseGameLayer.hpp>
@@ -16,16 +16,44 @@ using namespace geode::prelude;
 class $modify(RLPlayLayer, PlayLayer) {
     bool init(GJGameLevel* level, bool useReplay, bool dontCreateObjects) {
         if (!PlayLayer::init(level, useReplay, dontCreateObjects)) return false;
-        // LEARN(M0): log the level name here so you can see the hook fire.
+        log::info("Level Opened: {}", level->m_levelName);
         gdrl::Controller::get().onLevelStart(this);
         return true;
     }
 
     void destroyPlayer(PlayerObject* player, GameObject* object) {
-        // LEARN(M2): this is also called for things that are not real deaths.
-        // Log `object` for a while and work out which calls to count, then
-        // call gdrl::Controller::get().onDeath() only for those.
+        // When a level starts, GD kills the player with an invisible
+        // "anticheat spike" to check collisions work. That is not a death.
+        // (It fires about 13 times per attempt.) GD can also call this several
+        // times for one death; onDeath only counts the first.
+        bool real = object != m_anticheatSpike;
         PlayLayer::destroyPlayer(player, object);
+        if (real) gdrl::Controller::get().onDeath();
+    }
+
+    // GD's own restart after a death (about a second later). The agent
+    // resets through RESET instead, so skip it while a client is in control.
+    void delayedResetLevel() {
+        if (gdrl::Controller::get().isAgentControlling()) return;
+        PlayLayer::delayedResetLevel();
+    }
+
+    void resetLevel() {
+        PlayLayer::resetLevel();
+        gdrl::Controller::get().onLevelReset();
+    }
+
+    // GD pauses when its window loses focus (e.g. clicking the terminal that
+    // runs the Python client), which would stall every reply. Not under the agent.
+    void pauseGame(bool unfocused) {
+        if (unfocused && gdrl::Controller::get().isAgentControlling()) return;
+        PlayLayer::pauseGame(unfocused);
+    }
+
+    // The results screen after completing a level; skipped under the agent.
+    void showEndLayer() {
+        if (gdrl::Controller::get().isAgentControlling()) return;
+        PlayLayer::showEndLayer();
     }
 
     void levelComplete() {
@@ -40,10 +68,16 @@ class $modify(RLPlayLayer, PlayLayer) {
 };
 
 class $modify(RLBaseGameLayer, GJBaseGameLayer) {
+    // Once per frame, before the frame's ticks: the safe place to reset.
+    void update(float dt) {
+        gdrl::Controller::get().onFrameStart(this);
+        GJBaseGameLayer::update(dt);
+    }
+
+    // Runs once per physics tick (240/s, measured in M1). Note the player
+    // does not move inside this call; movement happens elsewhere in the tick.
     void processCommands(float dt, bool isHalfTick, bool isLastTick) {
         GJBaseGameLayer::processCommands(dt, isHalfTick, isLastTick);
-        // LEARN(M1): confirm this runs once per physics tick (count calls per
-        // second; expect the tick rate, 240 by default). If not, find the hook that does.
         gdrl::Controller::get().onTick(this);
     }
 };

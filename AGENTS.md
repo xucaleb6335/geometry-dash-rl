@@ -38,22 +38,7 @@ Gotchas:
 
 ## Progress
 
-Status as of 2026-10-09. Update this table when a milestone's gate passes.
-
-| Milestone | What | Status |
-| --- | --- | --- |
-| Setup | Python env, PyTorch, Geode SDK, toolchain | Done. `pytest`: 73 passed, 31 skipped (learn stubs + POSIX-only bridge tests) |
-| M0 | Mod builds, loads, logs level name | Mod builds and installs. **Next:** add the log line in `RLPlayLayer::init`, confirm in game |
-| M1 | Per-tick hook at 240/s; `readState` | Not started |
-| M2 | Real deaths, reset, button input | Not started |
-| M3 | Lockstep; `bridge_check --soak 10000` | Not started |
-| M5 | `ObjectListEncoder`, `ProgressReward` | Not started |
-| M6 | `layer_init`, `mlp`, `compute_gae`, `PPOAgent`; CartPole gate >= 475 on 3 seeds | Not started (**next** on the Python side) |
-| M7 | Own GD levels, train on the real game | Not started |
-| M8 | Baselines, `GridEncoder`, `GridCNN` | Not started |
-
-## Log
-
-- 2026-10-07: Project scaffolded (plumbing done, LEARN stubs in place).
-- 2026-10-09: Dev environment installed; fixed the Bridge.cpp/PCH winsock
-  clash in `mod/CMakeLists.txt`; first successful `geode build`.
+Tracked in `PROGRESS.md`: a checklist per milestone plus a dated log. Tick
+items and add a log line there when a test or gate passes. Once a milestone
+is done, remove its `LEARN(Mx)` comments from the code (the checklist keeps
+the record).
