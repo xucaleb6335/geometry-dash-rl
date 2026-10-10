@@ -26,3 +26,8 @@ Thumbs.db
 .env
 *.log
 .claude/settings.local.json
+
+# Vim swap, undo and backup files
+*.swp
+*.un~
+*~
