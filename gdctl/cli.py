@@ -376,6 +376,32 @@ def c_lock(a):
     return lock.release(a.owner, force=a.force)
 
 
+def c_stop_training(a):
+    """Ask overnight.ps1 to stop (logs/overnight.stop) and wait for it to exit."""
+    from gdctl import win32
+
+    logs = paths.REPO / "logs"
+    pid_file = logs / "overnight.pid"
+    if not pid_file.exists():
+        return {"ok": True, "action": "not_running", "lock": lock.describe(lock.read())}
+    try:
+        pid = int(pid_file.read_text().strip())
+    except ValueError:
+        pid = None
+    if pid and not win32.pid_alive(pid):
+        pid_file.unlink(missing_ok=True)
+        return {"ok": True, "action": "not_running", "note": "stale pid file removed",
+                "lock": lock.describe(lock.read())}
+    (logs / "overnight.stop").write_text(time.strftime("%Y-%m-%d %H:%M:%S"), encoding="utf-8")
+    deadline = time.monotonic() + a.wait
+    while time.monotonic() < deadline:
+        if not pid_file.exists() or (pid and not win32.pid_alive(pid)):
+            return {"ok": True, "action": "stopped", "pid": pid, "lock": lock.describe(lock.read())}
+        time.sleep(1.0)
+    return {"ok": False, "code": "timeout", "error": f"overnight.ps1 (pid {pid}) did not stop in {a.wait:.0f} s",
+            "pid": pid}
+
+
 def c_raw(a):
     try:
         msg = json.loads(a.json)
@@ -575,6 +601,8 @@ def build_parser() -> argparse.ArgumentParser:
     sp.add_argument("--wait", type=float, default=0.0, help="acquire: seconds to wait for the lock")
     sp.add_argument("--note", help="acquire: what you are doing")
     sp.add_argument("--force", action="store_true", help="release: break someone else's lock")
+    sp = add("stop-training", c_stop_training, "stop overnight.ps1 (releases its game lock)")
+    sp.add_argument("--wait", type=float, default=120.0)
     sp = add("raw", c_raw, "send a raw JSON command to the control mod")
     sp.add_argument("json")
     sp.add_argument("--timeout", type=float, default=30.0)
@@ -583,7 +611,7 @@ def build_parser() -> argparse.ArgumentParser:
 
 # Commands that never change the game; everything else checks the lock.
 READ_ONLY = {"status", "logs", "screenshot", "ping", "scene", "tree", "list-levels", "level-info",
-             "level-export", "search-levels", "wait-scene", "lock", "focus"}
+             "level-export", "search-levels", "wait-scene", "lock", "focus", "stop-training"}
 
 
 def run(argv: list[str] | None = None) -> tuple[int, dict[str, Any]]:
