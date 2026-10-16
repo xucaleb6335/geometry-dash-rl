@@ -10,7 +10,7 @@ namespace gdrl {
 
 // Fill `out` from the current PlayLayer. Called on the main thread only.
 //
-// LEARN(M1). What to fill, all in game units (30 units = 1 block):
+// What it fills, all in game units (30 units = 1 block):
 //   - tick:        your own counter, reset to 0 on RESET (the Controller owns it)
 //   - flags:       ON_GROUND, UPSIDE_DOWN, HOLDING (DEAD and COMPLETED come
 //                  from the destroyPlayer / levelComplete hooks, not from here)

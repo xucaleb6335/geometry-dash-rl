@@ -19,7 +19,22 @@ import time
 import numpy as np
 
 from gdrl.env.client import GDClient
-from gdrl.env.protocol import DEFAULT_PORT
+from gdrl.env.protocol import DEFAULT_PORT, GameState
+
+
+def describe_diff(x: bytes, y: bytes) -> str:
+    """Which STATE fields differ between two encodings, for a failure message."""
+    a, b = GameState.from_bytes(x), GameState.from_bytes(y)
+    diffs = []
+    for name in ("tick", "flags", "player_x", "player_y", "vel_y", "rotation", "x_speed", "level_length", "mode"):
+        va, vb = getattr(a, name), getattr(b, name)
+        if va != vb:
+            diffs.append(f"{name} {va!r} vs {vb!r}")
+    if len(a.objects) != len(b.objects):
+        diffs.append(f"n_objects {len(a.objects)} vs {len(b.objects)}")
+    elif a.objects.tobytes() != b.objects.tobytes():
+        diffs.append("objects")
+    return ", ".join(diffs) or "reserved bytes only"
 
 
 def check_determinism(client: GDClient, steps: int, ticks: int, seed: int = 0) -> tuple[bool, str]:
@@ -36,7 +51,7 @@ def check_determinism(client: GDClient, steps: int, ticks: int, seed: int = 0) -
     a, b = streams
     for i, (x, y) in enumerate(zip(a, b)):
         if x != y:
-            return False, f"streams differ at step {i}"
+            return False, f"streams differ at step {i}: {describe_diff(x, y)}"
     if len(a) != len(b):
         return False, f"streams have different lengths ({len(a)} vs {len(b)})"
     return True, f"{len(a)} states identical"

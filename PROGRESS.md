@@ -77,26 +77,43 @@ M3 and M6 pass their gates.
 - **Gate:** no false deaths in a session; 500 unattended attempts without a
   crash; a hard-coded jump rule plays a level
 
-### M3: lockstep
+### M3: lockstep (code written 2026-10-10, not yet verified in game)
 
-- [ ] Read how `GJBaseGameLayer::update` turns frame time into ticks
-  (`getModifiedDelta`, `m_extraDelta`)
-- [ ] `mod/src/Controller.cpp` `pollClient` + `handleStep`: the game advances
-  exactly `ticks` ticks per STEP and waits otherwise
+- [x] Stage 1: under the agent, one update call = one tick (`runOneTick`:
+  empty `m_extraDelta`, no `m_resumeTimer`, feed 1/240 s); the Controller
+  warns in the log if a call ever runs != 1 physics tick
+- [x] Stage 2: messages are only handled at frame level: a `CCScheduler`
+  hook (`pollIdle`) for menus/handshake, the level's `update` hook
+  (`onFrame`) under the agent. Never inside a tick
+- [x] Stage 3: STEP runs exactly N one-tick updates right away, stopping at
+  the tick that ends the episode; no STEP, no ticks. RESET resets directly
+- [x] Stage 4: `onFrame` keeps serving STEPs for up to 10 ms per frame, then
+  lets cocos draw
+- [x] Stage 5: client lost or BYE → button released, level restarted if the
+  attempt had ended, game back to normal. Quitting the level → later
+  requests get NOT_IN_LEVEL. A STEP while the level is not updating gets an
+  error instead of hanging
+- [x] `bridge_check` now names the differing fields when determinism fails
+  (passes on the mock server: 73x real time)
+- [ ] Verify: the game freezes while Python is idle and runs fast while it steps
+- [ ] Verify: no "a one-tick update ran N physics ticks" warnings in the log
+- [x] Verify: `jump_rule.py` repeat attempts die at exactly the same tick
+  (2026-10-10, Cycles: 19 attempts in a row died at tick 1314)
+- [ ] Verify: `bridge_check --soak 200` passes all three checks
 - **Gate:** `python -m gdrl.tools.bridge_check --port 5555 --soak 10000` passes
   all three checks
 
 ## Part 2: environment and brain (Python)
 
-### M4: environment (already done, read only)
+### M4: environment (done 2026-10-10)
 
-- [ ] Read `gdrl/env/gd_env.py`, `mock_game.py`, `mock_server.py`: terminated vs.
+- [x] Read `gdrl/env/gd_env.py`, `mock_game.py`, `mock_server.py`: terminated vs.
   truncated, same-step autoreset, `final_obs`
 
-### M5: features and reward
+### M5: features and reward (done 2026-10-10, written by Claude on request)
 
-- [ ] `gdrl/features/encoder.py` `ObjectListEncoder.encode` → `tests/learn/test_encoder.py`
-- [ ] `gdrl/rewards/reward.py` `ProgressReward.__call__` → `tests/learn/test_reward.py`
+- [x] `gdrl/features/encoder.py` `ObjectListEncoder.encode` → `tests/learn/test_encoder.py`
+- [x] `gdrl/rewards/reward.py` `ProgressReward.__call__` → `tests/learn/test_reward.py`
 
 ### M6: PPO
 
@@ -148,3 +165,14 @@ M3 and M6 pass their gates.
 - 2026-10-10: M1 done (y offset and velY confirmed, velY sign/scale fixed,
   debug log removed). M2 deaths and button verified in game; 500-attempt
   run and beating a level still to do.
+- 2026-10-10: M3 lockstep implemented (stages 1-5); needs the in-game checks
+  and the 10000-episode soak.
+- 2026-10-10: M3 in game: jump_rule deterministic on Cycles; a ~10,000-episode
+  soak on Blast Processing ran 9 min (~1,240 episodes/min) with no warnings,
+  stalls or crash. An earlier Cycles session had 10 "ran 0 physics ticks"
+  warnings on its first attempt (death at tick 12786); that run was stopped
+  by hand, not investigated. Watch for it if first episodes look odd.
+- 2026-10-10: M4 read through (terminated vs. truncated, same-step autoreset,
+  `final_obs`). M5 implemented by Claude: object-list encoder with one-hot
+  kinds (84 features at k = 8) and progress-fraction reward; learn tests pass,
+  and a rule reading only the observation beats all 8 mock levels.

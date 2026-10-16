@@ -6,6 +6,7 @@
 // compile, check the generated headers in mod/build/bindings.
 
 #include <Geode/Geode.hpp>
+#include <Geode/modify/CCScheduler.hpp>
 #include <Geode/modify/GJBaseGameLayer.hpp>
 #include <Geode/modify/PlayLayer.hpp>
 
@@ -68,10 +69,29 @@ class $modify(RLPlayLayer, PlayLayer) {
 };
 
 class $modify(RLBaseGameLayer, GJBaseGameLayer) {
-    // Once per frame, before the frame's ticks: the safe place to reset.
+    // One frame of the level. Normally the game turns the frame's real time
+    // into ticks. Under the agent (M3 lockstep) the frame runs no ticks of its
+    // own: the Controller serves the client and each STEP runs its ticks
+    // through runOneTick. No STEP, no ticks.
     void update(float dt) {
-        gdrl::Controller::get().onFrameStart(this);
-        GJBaseGameLayer::update(dt);
+        auto& controller = gdrl::Controller::get();
+        if (!controller.isAgentControlling(this)) {
+            GJBaseGameLayer::update(dt);
+            return;
+        }
+        controller.onFrame(this, [this] { runOneTick(); });
+    }
+
+    // Exactly one physics tick: feed the game one tick's worth of time with an
+    // empty time bank (m_extraDelta), so nothing left over from earlier adds or
+    // drops a tick, and no resume delay (GD skips ticks for a few frames after
+    // a reset or unpause). float(1/240) is a hair above 1/240, so the game's
+    // tick count for it is 1 whether it rounds or floors. The Controller checks
+    // that exactly one tick ran.
+    void runOneTick() {
+        m_extraDelta = 0.0;
+        m_resumeTimer = 0;
+        GJBaseGameLayer::update(1.0f / gdrl::proto::kDefaultTickRate);
     }
 
     // Runs once per physics tick (240/s, measured in M1). Note the player
@@ -79,6 +99,15 @@ class $modify(RLBaseGameLayer, GJBaseGameLayer) {
     void processCommands(float dt, bool isHalfTick, bool isLastTick) {
         GJBaseGameLayer::processCommands(dt, isHalfTick, isLastTick);
         gdrl::Controller::get().onTick(this);
+    }
+};
+
+// Once per frame for the whole game, menus included: accept clients and
+// answer them while no level is under the agent (handshake, NOT_IN_LEVEL).
+class $modify(RLScheduler, CCScheduler) {
+    void update(float dt) {
+        gdrl::Controller::get().pollIdle();
+        CCScheduler::update(dt);
     }
 };
 

@@ -30,7 +30,14 @@ class ConstantReward(RewardFn):
 
 class ProgressReward(RewardFn):
     """``progress_scale`` per level-length travelled, ``death_penalty`` on death,
-    ``completion_bonus`` on completion. (M5)"""
+    ``completion_bonus`` on completion. (M5)
+
+    Progress is the change in ``GameState.progress`` (fraction of the level,
+    clipped to [0, 1]), so a whole level is worth ``progress_scale`` whatever
+    its length, and the three terms stay on the same scale. The step you die
+    on still gets the progress it made; the penalty is added on top. The
+    action is ignored: no reward for pressing or not pressing.
+    """
 
     def __init__(self, progress_scale: float = 1.0, death_penalty: float = -1.0, completion_bonus: float = 1.0):
         self.progress_scale = progress_scale
@@ -38,12 +45,12 @@ class ProgressReward(RewardFn):
         self.completion_bonus = completion_bonus
 
     def __call__(self, prev: GameState, action: int, state: GameState) -> float:
-        # LEARN(M5): implement the three terms in the docstring.
-        # - Measure progress in a unit that does not depend on level length?
-        #   Or as a fraction of it? Think about levels of different lengths.
-        # - Should the step you die on also get its progress?
-        # Test: tests/learn/test_reward.py
-        raise NotImplementedError("LEARN(M5): ProgressReward.__call__")
+        reward = self.progress_scale * (state.progress - prev.progress)
+        if state.dead:
+            reward += self.death_penalty
+        if state.completed:
+            reward += self.completion_bonus
+        return reward
 
 
 REWARDS: dict[str, type[RewardFn]] = {

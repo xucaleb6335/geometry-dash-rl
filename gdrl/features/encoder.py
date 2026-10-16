@@ -17,7 +17,7 @@ import numpy as np
 from gymnasium import spaces
 
 from gdrl.env.mock_game import JUMP_VELOCITY
-from gdrl.env.protocol import BLOCK, GameState
+from gdrl.env.protocol import BLOCK, GameState, ObjectKind
 
 
 class Encoder(ABC):
@@ -54,31 +54,72 @@ class DebugEncoder(Encoder):
 class ObjectListEncoder(Encoder):
     """Observation v1: player features plus the next ``k`` obstacles. (M5)
 
-    Layout, length ``4 + 5 * k``:
+    Layout, length ``4 + (4 + len(KINDS)) * k``:
 
     - ``[0:4]`` player: y, vel_y, on_ground, upside_down
-    - then ``k`` slots of ``(dx, dy, w, h, kind)`` for the nearest objects
-      ahead, sorted by dx. ``dx``/``dy`` are relative to the player. Empty
-      slots are all zero, so pick an encoding where "no object" cannot be
-      confused with a real one (hint: kind).
+    - then ``k`` slots of ``(dx, dy, w, h, *one_hot(kind))`` for the nearest
+      objects ahead, sorted by dx. ``dx``/``dy`` are the object's hitbox centre
+      relative to the player's. Kind is one-hot over ``KINDS`` (an unknown kind
+      counts as OTHER), so every real object has exactly one kind bit set and
+      an empty slot, all zero, cannot be confused with one.
 
-    Normalize with fixed constants (e.g. ``max_dx_blocks``), not per-batch
-    statistics, so the same state always encodes the same way.
+    Scales are fixed: x lengths (dx, w) are divided by ``max_dx``, y lengths
+    (y, dy, h) by ``max_dy``, so ``dx - w / 2`` is still the left edge in the
+    same units. Velocity is divided by twice the cube's jump velocity. Then
+    everything is clipped to [-1, 1].
+
+    "Ahead" means the hitbox's right edge is past the player's left edge (so
+    the object being passed over stays visible) and its left edge is within
+    ``max_dx``; objects more than ``max_dy`` away vertically are out of view.
     """
+
+    KINDS = (ObjectKind.SOLID, ObjectKind.HAZARD, ObjectKind.ORB, ObjectKind.PAD, ObjectKind.PORTAL, ObjectKind.OTHER)
+    PLAYER_FEATURES = 4
+    SLOT_SIZE = 4 + len(KINDS)
 
     def __init__(self, k: int = 8, max_dx_blocks: float = 20.0, max_dy_blocks: float = 10.0) -> None:
         self.k = k
         self.max_dx = max_dx_blocks * BLOCK
         self.max_dy = max_dy_blocks * BLOCK
-        self.observation_space = spaces.Box(-1.0, 1.0, shape=(4 + 5 * k,), dtype=np.float32)
+        size = self.PLAYER_FEATURES + self.SLOT_SIZE * k
+        self.observation_space = spaces.Box(-1.0, 1.0, shape=(size,), dtype=np.float32)
+        # ObjectKind value -> one-hot column; anything unknown is OTHER.
+        self._kind_column = np.full(256, self.KINDS.index(ObjectKind.OTHER), dtype=np.int64)
+        for i, kind in enumerate(self.KINDS):
+            self._kind_column[int(kind)] = i
 
     def encode(self, state: GameState) -> np.ndarray:
-        # LEARN(M5): build the vector described in the class docstring.
-        # - Which objects count as "ahead"? Keep the one you are passing over.
-        # - How do you encode kind as a number in [-1, 1]? Or use one-hot and
-        #   change the layout (update observation_space and the docstring too).
-        # Test: tests/learn/test_encoder.py
-        raise NotImplementedError("LEARN(M5): ObjectListEncoder.encode")
+        obs = np.zeros(self.observation_space.shape, dtype=np.float64)
+        obs[0] = state.player_y / self.max_dy
+        obs[1] = state.vel_y / (2 * JUMP_VELOCITY)
+        obs[2] = float(state.on_ground)
+        obs[3] = float(state.upside_down)
+
+        objs = state.objects
+        x, y = objs["x"].astype(np.float64), objs["y"].astype(np.float64)
+        w, h = objs["w"].astype(np.float64), objs["h"].astype(np.float64)
+        dx, dy = x - state.player_x, y - state.player_y
+        visible = (
+            (dx + w / 2 > -BLOCK / 2)  # right edge past the player's left edge
+            & (dx - w / 2 <= self.max_dx)  # left edge within view
+            & (np.abs(dy) <= self.max_dy)
+            & (objs["kind"] != ObjectKind.NONE)
+        )
+        idx = np.nonzero(visible)[0]
+        # Sort by dx, ties broken by every other field, so the input order of
+        # the objects never changes the encoding.
+        kinds = objs["kind"][idx].astype(np.int64)
+        order = np.lexsort((h[idx], w[idx], kinds, dy[idx], dx[idx]))
+        idx = idx[order][: self.k]
+
+        slots = obs[self.PLAYER_FEATURES :].reshape(self.k, self.SLOT_SIZE)
+        n = len(idx)
+        slots[:n, 0] = dx[idx] / self.max_dx
+        slots[:n, 1] = dy[idx] / self.max_dy
+        slots[:n, 2] = w[idx] / self.max_dx
+        slots[:n, 3] = h[idx] / self.max_dy
+        slots[np.arange(n), 4 + self._kind_column[objs["kind"][idx]]] = 1.0
+        return np.clip(obs, -1.0, 1.0).astype(np.float32)
 
 
 class GridEncoder(Encoder):

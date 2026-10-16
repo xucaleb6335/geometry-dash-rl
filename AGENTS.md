@@ -35,6 +35,10 @@ Gotchas:
 - Disable the Click Between Frames and QOLMod mods while training; they alter
   input/physics timing and will break the lockstep tick loop.
 - `tests/test_cpp_bridge.py` skips on Windows (needs a POSIX toolchain).
+- Lockstep (M3): while a Python client is connected and a level is open, the
+  level only moves when STEPs arrive, so it looks frozen when Python is idle.
+  GD's respawn delay, end screen and focus-loss pause are skipped then. Don't
+  open the pause menu under the agent: RESET/STEP get an error until it closes.
 
 ## Progress
 
