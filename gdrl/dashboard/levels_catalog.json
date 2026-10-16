@@ -1,0 +1,58 @@
+{
+  "_note": "Difficulty metadata for the level board. difficulty is one of: mock, mock_heldout, mock_demon, easy, normal, hard, harder, insane, easy_demon, medium_demon, hard_demon, insane_demon, extreme_demon. Edit freely; unknown levels are added to the board automatically. 'aliases' are matched (case-insensitive) against run meta.level, ledger level names and level ids. 'main' difficulties are approximate.",
+  "run_level_overrides": {
+    "gd-overnight": "main:1",
+    "gd-curriculum-sm": "main:1"
+  },
+  "groups": ["Mock", "Mock demons", "Main levels", "Extreme demons", "Pointercrate top 10"],
+  "levels": [
+    {"key": "mock:1", "name": "Mock level 1", "group": "Mock", "difficulty": "mock", "game": "mock", "aliases": ["mock level 1"]},
+    {"key": "mock:2", "name": "Mock level 2", "group": "Mock", "difficulty": "mock", "game": "mock", "aliases": ["mock level 2"]},
+    {"key": "mock:3", "name": "Mock level 3", "group": "Mock", "difficulty": "mock", "game": "mock", "aliases": ["mock level 3"]},
+    {"key": "mock:4", "name": "Mock level 4", "group": "Mock", "difficulty": "mock", "game": "mock", "aliases": ["mock level 4"]},
+    {"key": "mock:5", "name": "Mock level 5", "group": "Mock", "difficulty": "mock", "game": "mock", "aliases": ["mock level 5"]},
+    {"key": "mock:101", "name": "Mock held-out 101", "group": "Mock", "difficulty": "mock_heldout", "game": "mock", "aliases": ["mock level 101"]},
+    {"key": "mock:102", "name": "Mock held-out 102", "group": "Mock", "difficulty": "mock_heldout", "game": "mock", "aliases": ["mock level 102"]},
+    {"key": "mock:103", "name": "Mock held-out 103", "group": "Mock", "difficulty": "mock_heldout", "game": "mock", "aliases": ["mock level 103"]},
+    {"key": "mock-demon:1", "name": "Mock demon 1", "group": "Mock demons", "difficulty": "mock_demon", "game": "mock", "length": 25320, "aliases": ["mock-demon-1"]},
+    {"key": "mock-demon:2", "name": "Mock demon 2", "group": "Mock demons", "difficulty": "mock_demon", "game": "mock", "aliases": ["mock-demon-2"]},
+    {"key": "mock-demon:3", "name": "Mock demon 3", "group": "Mock demons", "difficulty": "mock_demon", "game": "mock", "aliases": ["mock-demon-3"]},
+
+    {"key": "main:1", "name": "Stereo Madness", "group": "Main levels", "difficulty": "easy", "game": "real", "gd_id": 1, "length": 26725, "aliases": ["main:1", "stereo madness"]},
+    {"key": "main:2", "name": "Back on Track", "group": "Main levels", "difficulty": "normal", "game": "real", "gd_id": 2, "aliases": ["main:2", "back on track"]},
+    {"key": "main:3", "name": "Polargeist", "group": "Main levels", "difficulty": "hard", "game": "real", "gd_id": 3, "aliases": ["main:3", "polargeist"]},
+    {"key": "main:4", "name": "Dry Out", "group": "Main levels", "difficulty": "hard", "game": "real", "gd_id": 4, "aliases": ["main:4", "dry out"]},
+    {"key": "main:5", "name": "Base After Base", "group": "Main levels", "difficulty": "harder", "game": "real", "gd_id": 5, "aliases": ["main:5", "base after base"]},
+    {"key": "main:6", "name": "Can't Let Go", "group": "Main levels", "difficulty": "harder", "game": "real", "gd_id": 6, "aliases": ["main:6", "cant let go", "can't let go"]},
+    {"key": "main:7", "name": "Jumper", "group": "Main levels", "difficulty": "insane", "game": "real", "gd_id": 7, "aliases": ["main:7", "jumper"]},
+    {"key": "main:8", "name": "Time Machine", "group": "Main levels", "difficulty": "insane", "game": "real", "gd_id": 8, "aliases": ["main:8", "time machine"]},
+    {"key": "main:9", "name": "Cycles", "group": "Main levels", "difficulty": "insane", "game": "real", "gd_id": 9, "aliases": ["main:9", "cycles"]},
+    {"key": "main:10", "name": "xStep", "group": "Main levels", "difficulty": "insane", "game": "real", "gd_id": 10, "aliases": ["main:10", "xstep"]},
+    {"key": "main:11", "name": "Clutterfunk", "group": "Main levels", "difficulty": "insane", "game": "real", "gd_id": 11, "aliases": ["main:11", "clutterfunk"]},
+    {"key": "main:12", "name": "Theory of Everything", "group": "Main levels", "difficulty": "insane", "game": "real", "gd_id": 12, "aliases": ["main:12", "theory of everything"]},
+    {"key": "main:13", "name": "Electroman Adventures", "group": "Main levels", "difficulty": "insane", "game": "real", "gd_id": 13, "aliases": ["main:13", "electroman adventures"]},
+    {"key": "main:14", "name": "Clubstep", "group": "Main levels", "difficulty": "easy_demon", "game": "real", "gd_id": 14, "aliases": ["main:14", "clubstep"]},
+    {"key": "main:15", "name": "Electrodynamix", "group": "Main levels", "difficulty": "insane", "game": "real", "gd_id": 15, "aliases": ["main:15", "electrodynamix"]},
+    {"key": "main:16", "name": "Hexagon Force", "group": "Main levels", "difficulty": "insane", "game": "real", "gd_id": 16, "aliases": ["main:16", "hexagon force"]},
+    {"key": "main:17", "name": "Blast Processing", "group": "Main levels", "difficulty": "insane", "game": "real", "gd_id": 17, "aliases": ["main:17", "blast processing"]},
+    {"key": "main:18", "name": "Theory of Everything 2", "group": "Main levels", "difficulty": "easy_demon", "game": "real", "gd_id": 18, "aliases": ["main:18", "theory of everything 2"]},
+    {"key": "main:19", "name": "Geometrical Dominator", "group": "Main levels", "difficulty": "insane", "game": "real", "gd_id": 19, "aliases": ["main:19", "geometrical dominator"]},
+    {"key": "main:20", "name": "Deadlocked", "group": "Main levels", "difficulty": "easy_demon", "game": "real", "gd_id": 20, "aliases": ["main:20", "deadlocked"]},
+    {"key": "main:21", "name": "Fingerdash", "group": "Main levels", "difficulty": "insane", "game": "real", "gd_id": 21, "aliases": ["main:21", "fingerdash"]},
+
+    {"key": "gd:10565740", "name": "Bloodbath", "group": "Extreme demons", "difficulty": "extreme_demon", "game": "real", "gd_id": 10565740, "aliases": ["bloodbath", "10565740"]},
+    {"key": "gd:3979721", "name": "Cataclysm", "group": "Extreme demons", "difficulty": "extreme_demon", "game": "real", "gd_id": 3979721, "aliases": ["cataclysm", "3979721"]},
+    {"key": "gd:146399247", "name": "Rauchkammer", "group": "Extreme demons", "difficulty": "extreme_demon", "game": "real", "gd_id": 146399247, "aliases": ["rauchkammer", "146399247"]},
+
+    {"key": "pc:1", "name": "Pointercrate #1 (placeholder)", "group": "Pointercrate top 10", "difficulty": "extreme_demon", "game": "real", "aliases": ["pointercrate 1", "pc:1"]},
+    {"key": "pc:2", "name": "Pointercrate #2 (placeholder)", "group": "Pointercrate top 10", "difficulty": "extreme_demon", "game": "real", "aliases": ["pointercrate 2", "pc:2"]},
+    {"key": "pc:3", "name": "Pointercrate #3 (placeholder)", "group": "Pointercrate top 10", "difficulty": "extreme_demon", "game": "real", "aliases": ["pointercrate 3", "pc:3"]},
+    {"key": "pc:4", "name": "Pointercrate #4 (placeholder)", "group": "Pointercrate top 10", "difficulty": "extreme_demon", "game": "real", "aliases": ["pointercrate 4", "pc:4"]},
+    {"key": "pc:5", "name": "Pointercrate #5 (placeholder)", "group": "Pointercrate top 10", "difficulty": "extreme_demon", "game": "real", "aliases": ["pointercrate 5", "pc:5"]},
+    {"key": "pc:6", "name": "Pointercrate #6 (placeholder)", "group": "Pointercrate top 10", "difficulty": "extreme_demon", "game": "real", "aliases": ["pointercrate 6", "pc:6"]},
+    {"key": "pc:7", "name": "Pointercrate #7 (placeholder)", "group": "Pointercrate top 10", "difficulty": "extreme_demon", "game": "real", "aliases": ["pointercrate 7", "pc:7"]},
+    {"key": "pc:8", "name": "Pointercrate #8 (placeholder)", "group": "Pointercrate top 10", "difficulty": "extreme_demon", "game": "real", "aliases": ["pointercrate 8", "pc:8"]},
+    {"key": "pc:9", "name": "Pointercrate #9 (placeholder)", "group": "Pointercrate top 10", "difficulty": "extreme_demon", "game": "real", "aliases": ["pointercrate 9", "pc:9"]},
+    {"key": "pc:10", "name": "Pointercrate #10 (placeholder)", "group": "Pointercrate top 10", "difficulty": "extreme_demon", "game": "real", "aliases": ["pointercrate 10", "pc:10"]}
+  ]
+}
