@@ -1,0 +1,33 @@
+{
+	"geode": "5.10.1",
+	"gd": {
+		"win": "2.2081"
+	},
+	"id": "xucaleb6335.gd-agent-control",
+	"name": "GD Agent Control",
+	"version": "v0.1.0",
+	"developer": "xucaleb6335",
+	"description": "Lets an AI agent drive the game (menus, levels, screenshots, mods) over localhost TCP JSON lines.",
+	"settings": {
+		"port": {
+			"name": "Control port",
+			"description": "Localhost TCP port for agent commands (JSON lines). Restart the game after changing it.",
+			"type": "int",
+			"default": 5556,
+			"min": 1024,
+			"max": 65535
+		},
+		"prevent-pause": {
+			"name": "Never pause on focus loss",
+			"description": "Keep levels running when the window loses focus, even without an RL client. Agents can also toggle this at runtime.",
+			"type": "bool",
+			"default": false
+		},
+		"log-commands": {
+			"name": "Log commands",
+			"description": "Write each agent command (except ping and scene) to the Geode log.",
+			"type": "bool",
+			"default": true
+		}
+	}
+}

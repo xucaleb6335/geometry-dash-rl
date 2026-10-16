@@ -65,9 +65,14 @@ Run them with `CUDA_VISIBLE_DEVICES=-1` until CUDA is fixed (see below).
   is the one imported (checked: `gdrl.__file__` is under the autopilot
   folder). Do not `pip install -e .` here; it would repoint the original's
   venv at this copy.
-- The mod source in `mod/` is identical to the original's. Do not run
-  `geode build` here: both copies share one installed mod (same mod id).
+- The mod source in `mod/` is identical to the original's. Both copies share
+  one installed mod (same mod id), so the last build wins. The owner now
+  permits agents to build it from here and to relaunch GD (2026-10-11).
 - Geode logs: `C:\Program Files (x86)\Steam\steamapps\common\Geometry Dash\geode\logs\`.
+- **Driving the game:** use `python -m gdctl` (`gdctl/README.md`): launch,
+  kill, build, screenshots, menus, levels, online download, StartPos editing,
+  `prepare-training`. Take the game lock first (`gdctl lock acquire --owner
+  <you>`); it is mandatory. The companion mod is in `control-mod/`.
 
 ## CUDA problem (open)
 
