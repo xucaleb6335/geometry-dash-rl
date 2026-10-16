@@ -2,6 +2,7 @@
 
     python -m gdrl.train --config configs/cartpole_ppo.yaml
     python -m gdrl.train --config configs/mock_ppo.yaml --set seed=2
+    python -m gdrl.train --config configs/gd_ppo.yaml --set train.resume=runs/<run>/checkpoints/final.pt
 
 Everything algorithm-specific lives in the agent; this file only collects
 data, logs and checkpoints. Plumbing.
@@ -66,6 +67,14 @@ def train(cfg: dict[str, Any]) -> Path:
     ep_length = np.zeros(num_envs, dtype=np.int64)
     global_step = 0
     update = 0
+    if tcfg.get("resume"):
+        # Continue from a checkpoint: the agent keeps its weights, optimizer and
+        # update count, so learning-rate annealing picks up where it stopped.
+        # Keep total_steps the same as the original run.
+        agent.load(tcfg["resume"])
+        update = int(getattr(agent, "num_updates_done", 0))
+        global_step = update * T * num_envs
+        print(f"resumed from {tcfg['resume']} at update {update}, step {global_step}")
     started = time.time()
     print(f"run dir: {run_dir}")
 

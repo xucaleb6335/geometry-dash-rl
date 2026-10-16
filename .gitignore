@@ -8,6 +8,7 @@ venv/
 
 # Training output
 runs/
+logs/
 *.pt
 
 # C++ builds

@@ -17,8 +17,11 @@ from pathlib import Path
 import numpy as np
 import torch
 from gymnasium import spaces
+from torch import nn
+from torch.distributions import Categorical
 
 from gdrl.agents.base import ActOutput, Agent, Rollout
+from gdrl.agents.networks import GridCNN, layer_init, mlp
 
 
 @dataclass
@@ -72,9 +75,20 @@ def compute_gae(
     delta_t = r_t + gamma * next_values_t * (1 - terminated_t) - V(s_t)
     A_t     = delta_t + gamma * lam * (1 - done_t) * A_{t+1},   done = terminated | truncated
     """
-    # LEARN(M6): loop backwards over t. Test: tests/learn/test_gae.py has a
-    # hand-worked example for each case (plain, terminated, truncated).
-    raise NotImplementedError("LEARN(M6): compute_gae")
+    rewards = np.asarray(rewards, dtype=np.float64)
+    values = np.asarray(values, dtype=np.float64)
+    next_values = np.asarray(next_values, dtype=np.float64)
+    terminated = np.asarray(terminated, dtype=bool)
+    done = terminated | np.asarray(truncated, dtype=bool)
+
+    advantages = np.zeros_like(rewards)
+    next_adv = np.zeros(rewards.shape[1:], dtype=np.float64)  # A_{t+1}
+    for t in reversed(range(rewards.shape[0])):
+        delta = rewards[t] + gamma * next_values[t] * (1.0 - terminated[t]) - values[t]
+        next_adv = delta + gamma * lam * (1.0 - done[t]) * next_adv
+        advantages[t] = next_adv
+    returns = advantages + values
+    return advantages.astype(np.float32), returns.astype(np.float32)
 
 
 class PPOAgent(Agent):
@@ -89,41 +103,151 @@ class PPOAgent(Agent):
         self.n_actions = int(action_space.n)
         self.num_updates_done = 0
 
-        # LEARN(M6): build two separate networks (detail 13 says separate nets
-        # beat a shared trunk on simple tasks) and one Adam optimizer over both:
-        #   self.policy:    obs -> logits (n_actions), output std 0.01
-        #   self.value:     obs -> V(s) (1), output std 1.0
-        #   self.optimizer: Adam(lr=cfg.learning_rate, eps=cfg.adam_eps)
-        # Use gdrl.agents.networks.mlp. Move both networks to self.device.
-        raise NotImplementedError("LEARN(M6): PPOAgent.__init__")
+        # Separate policy and value networks (detail 13), one Adam over both.
+        self.policy = self._build_net(self.n_actions, out_std=0.01).to(self.device)
+        self.value = self._build_net(1, out_std=1.0).to(self.device)
+        self.optimizer = torch.optim.Adam(self._parameters(), lr=cfg.learning_rate, eps=cfg.adam_eps)
+
+    def _parameters(self) -> list[nn.Parameter]:
+        return [*self.policy.parameters(), *self.value.parameters()]
+
+    def _build_net(self, out_dim: int, out_std: float) -> nn.Module:
+        """An MLP for flat observations, a GridCNN trunk for ``(C, H, W)`` grids."""
+        if len(self.obs_shape) == 1:
+            return mlp(int(self.obs_shape[0]), self.cfg.hidden_sizes, out_dim, out_std)
+        if len(self.obs_shape) == 3:
+            c, h, w = (int(d) for d in self.obs_shape)
+            features = self.cfg.hidden_sizes[-1] if self.cfg.hidden_sizes else 128
+            trunk = GridCNN(c, h, w, out_dim=features)
+            return nn.Sequential(trunk, layer_init(nn.Linear(features, out_dim), std=out_std))
+        raise ValueError(f"unsupported observation shape {self.obs_shape}")
+
+    def _tensor(self, x: np.ndarray) -> torch.Tensor:
+        return torch.as_tensor(np.asarray(x), dtype=torch.float32, device=self.device)
+
+    def _values(self, obs: torch.Tensor) -> torch.Tensor:
+        return self.value(obs).squeeze(-1)
 
     def act(self, obs: np.ndarray, deterministic: bool = False) -> ActOutput:
-        # LEARN(M6): under torch.no_grad(), turn obs into a float tensor on
-        # self.device, build a Categorical from the policy logits, sample (or
-        # argmax if deterministic) and return
-        #   ActOutput(action, extras={"logprob": ..., "value": ...})
-        # as numpy arrays of shape (N,). The train loop stores extras for update().
-        raise NotImplementedError("LEARN(M6): PPOAgent.act")
+        with torch.no_grad():
+            x = self._tensor(obs)
+            dist = Categorical(logits=self.policy(x))
+            action = torch.argmax(dist.logits, dim=-1) if deterministic else dist.sample()
+            logprob = dist.log_prob(action)
+            value = self._values(x)
+        return ActOutput(
+            action=action.cpu().numpy().astype(np.int64),
+            extras={
+                "logprob": logprob.cpu().numpy().astype(np.float32),
+                "value": value.cpu().numpy().astype(np.float32),
+            },
+        )
 
     def update(self, rollout: Rollout) -> dict[str, float]:
-        # LEARN(M6), in order:
-        #  1. anneal the learning rate: frac = 1 - num_updates_done / cfg.total_updates
-        #  2. next_values (T, N) per the table in Rollout's docstring: V(obs[t+1]),
-        #     V(next_obs) at the last step, V(final_obs[t]) where truncated
-        #  3. advantages, returns = compute_gae(...)
-        #  4. flatten (T, N) -> (T*N); for each epoch shuffle indices and split
-        #     into cfg.num_minibatches minibatches (each sample used once per epoch)
-        #  5. per minibatch: new logprob, entropy, value; ratio = exp(new - old);
-        #     normalize advantages within the minibatch; clipped surrogate loss;
-        #     (clipped) value loss; loss = pg - ent_coef * entropy + vf_coef * v_loss;
-        #     backward, clip_grad_norm_(max_grad_norm), step
-        #  6. optional early stop when approx_kl > target_kl
-        #  7. self.num_updates_done += 1 and return metrics:
-        #     policy_loss, value_loss, entropy, approx_kl, clipfrac,
-        #     explained_variance, learning_rate
-        # Sanity check: on the first minibatch of every update the ratio must be
-        # exactly 1. If it is not, your logprobs do not match the rollout's.
-        raise NotImplementedError("LEARN(M6): PPOAgent.update")
+        cfg = self.cfg
+        T, N = rollout.num_steps, rollout.num_envs
+
+        # 1. Learning-rate annealing (detail 4).
+        if cfg.anneal_lr:
+            frac = max(0.0, 1.0 - self.num_updates_done / max(1, cfg.total_updates))
+            lr = frac * cfg.learning_rate
+        else:
+            lr = cfg.learning_rate
+        for group in self.optimizer.param_groups:
+            group["lr"] = lr
+
+        # 2. Value of the state after each step, per Rollout's docstring.
+        #    Terminated steps are masked out inside compute_gae.
+        with torch.no_grad():
+            next_values = np.zeros((T, N), dtype=np.float32)
+            if T > 1:
+                after = self._tensor(rollout.obs[1:]).flatten(0, 1)
+                next_values[:-1] = self._values(after).reshape(T - 1, N).cpu().numpy()
+            next_values[-1] = self._values(self._tensor(rollout.next_obs)).cpu().numpy()
+            truncated = np.asarray(rollout.truncated, dtype=bool)
+            if truncated.any():
+                next_values[truncated] = self._values(self._tensor(rollout.final_obs[truncated])).cpu().numpy()
+
+        # 3. GAE (detail 5), against the values recorded at act() time.
+        old_values = np.asarray(rollout.extras["value"], dtype=np.float32)
+        advantages, returns = compute_gae(
+            rollout.rewards, old_values, next_values, rollout.terminated, rollout.truncated,
+            cfg.gamma, cfg.gae_lambda,
+        )
+
+        # 4. Flatten (T, N) -> B and train on shuffled minibatches (detail 6).
+        B = T * N
+        b_obs = self._tensor(rollout.obs.reshape(B, *self.obs_shape))
+        b_actions = torch.as_tensor(rollout.actions.reshape(B), dtype=torch.int64, device=self.device)
+        b_logprobs = self._tensor(rollout.extras["logprob"].reshape(B))
+        b_advantages = self._tensor(advantages.reshape(B))
+        b_returns = self._tensor(returns.reshape(B))
+        b_values = self._tensor(old_values.reshape(B))
+
+        minibatch_size = max(1, B // cfg.num_minibatches)
+        stats: dict[str, list[float]] = {k: [] for k in ("policy_loss", "value_loss", "entropy", "approx_kl", "clipfrac")}
+        for _epoch in range(cfg.update_epochs):
+            perm = torch.randperm(B, device=self.device)
+            epoch_kl = []
+            for start in range(0, B, minibatch_size):
+                mb = perm[start : start + minibatch_size]
+
+                # 5. Losses on this minibatch.
+                dist = Categorical(logits=self.policy(b_obs[mb]))
+                new_logprob = dist.log_prob(b_actions[mb])
+                entropy = dist.entropy().mean()
+                new_value = self._values(b_obs[mb])
+
+                logratio = new_logprob - b_logprobs[mb]
+                ratio = logratio.exp()
+                with torch.no_grad():
+                    approx_kl = ((ratio - 1) - logratio).mean()  # detail 12: low-variance estimator
+                    clipfrac = ((ratio - 1.0).abs() > cfg.clip_coef).float().mean()
+
+                mb_adv = b_advantages[mb]
+                if cfg.norm_adv and mb_adv.numel() > 1:  # detail 7
+                    mb_adv = (mb_adv - mb_adv.mean()) / (mb_adv.std() + 1e-8)
+
+                # Clipped surrogate objective (detail 8), negated into a loss.
+                pg_loss = torch.max(
+                    -mb_adv * ratio,
+                    -mb_adv * torch.clamp(ratio, 1 - cfg.clip_coef, 1 + cfg.clip_coef),
+                ).mean()
+
+                # Value loss, optionally clipped around the old value (detail 9).
+                if cfg.clip_vloss:
+                    v_unclipped = (new_value - b_returns[mb]) ** 2
+                    v_clipped = b_values[mb] + torch.clamp(new_value - b_values[mb], -cfg.clip_coef, cfg.clip_coef)
+                    v_loss = 0.5 * torch.max(v_unclipped, (v_clipped - b_returns[mb]) ** 2).mean()
+                else:
+                    v_loss = 0.5 * ((new_value - b_returns[mb]) ** 2).mean()
+
+                loss = pg_loss - cfg.ent_coef * entropy + cfg.vf_coef * v_loss  # detail 10
+
+                self.optimizer.zero_grad()
+                loss.backward()
+                nn.utils.clip_grad_norm_(self._parameters(), cfg.max_grad_norm)  # detail 11
+                self.optimizer.step()
+
+                stats["policy_loss"].append(pg_loss.item())
+                stats["value_loss"].append(v_loss.item())
+                stats["entropy"].append(entropy.item())
+                stats["approx_kl"].append(approx_kl.item())
+                stats["clipfrac"].append(clipfrac.item())
+                epoch_kl.append(approx_kl.item())
+
+            # 6. Optional early stop once the policy has moved too far.
+            if cfg.target_kl is not None and float(np.mean(epoch_kl)) > cfg.target_kl:
+                break
+
+        # 7. Metrics. Explained variance: how much of the return the critic predicted.
+        y_true, y_pred = returns.reshape(B), old_values.reshape(B)
+        var_y = float(np.var(y_true))
+        explained_var = 0.0 if var_y == 0 else 1.0 - float(np.var(y_true - y_pred)) / var_y
+        self.num_updates_done += 1
+        metrics = {k: float(np.mean(v)) for k, v in stats.items()}
+        metrics.update(explained_variance=explained_var, learning_rate=lr, value_mean=float(old_values.mean()))
+        return metrics
 
     # Checkpoint I/O is plumbing; it works once __init__ builds the attributes.
     def save(self, path: str | Path) -> None:

@@ -1,0 +1,34 @@
+# Overnight run on the real game (autopilot copy). Open the level in GD first.
+# Launch with overnight.ps1, which restarts from the latest checkpoint if the
+# connection drops. One game instance, so num_envs must be 1.
+name: gd-overnight
+seed: 1
+env:
+  id: gd
+  backend: socket
+  host: 127.0.0.1
+  port: 5555
+  timeout: 30.0
+  level_ids: [0]          # 0 = the level currently open in the game
+  frame_skip: 4
+  max_steps: 15000        # 250 s of game time: longer than most levels, so a full run is not truncated
+  encoder: {name: object_list, k: 8}
+  reward: {name: progress}
+agent:
+  name: ppo
+  rollout_steps: 2048
+  num_minibatches: 8
+  update_epochs: 4
+  learning_rate: 2.5e-4
+  gamma: 0.99
+  gae_lambda: 0.95
+  ent_coef: 0.01
+  hidden_sizes: [64, 64]
+  device: cpu             # a 64x64 MLP is faster on the CPU than on the GPU
+train:
+  num_envs: 1
+  total_steps: 30000000   # ~8 h at ~1,000 steps/s; stop it any time, checkpoints are kept
+  checkpoint_every: 10    # updates (every 20,480 steps)
+eval:
+  episodes: 20
+  sticky_prob: 0.1

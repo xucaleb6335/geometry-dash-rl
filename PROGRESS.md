@@ -1,4 +1,9 @@
-# Progress
+# Progress (autopilot copy)
+
+> This is the **autopilot** copy of the project (branch `autopilot`), made
+> 2026-10-10. Every `LEARN` stub here was filled in by Claude to test the full
+> pipeline overnight. The learning copy is `..\geometry-dash-rl`. See the
+> bottom of the log for what changed beyond the stubs.
 
 What's done and what's left. LEARNING.md explains each milestone; this file
 tracks where I am. Tick a box when its test or gate passes, and add a dated
@@ -117,20 +122,20 @@ M3 and M6 pass their gates.
 
 ### M6: PPO
 
-- [ ] `gdrl/agents/networks.py` `layer_init`, `mlp` → `tests/learn/test_networks.py`
-- [ ] `gdrl/agents/ppo.py` `compute_gae` → `tests/learn/test_gae.py`
+- [x] `gdrl/agents/networks.py` `layer_init`, `mlp` → `tests/learn/test_networks.py`
+- [x] `gdrl/agents/ppo.py` `compute_gae` → `tests/learn/test_gae.py`
   (work the docstring numbers by hand first)
-- [ ] `gdrl/agents/ppo.py` `PPOAgent.__init__`, `act`, `update` → `tests/learn/test_ppo.py`
-- [ ] CartPole seed 1 >= 475
-- [ ] CartPole seed 2 >= 475
-- [ ] CartPole seed 3 >= 475
+- [x] `gdrl/agents/ppo.py` `PPOAgent.__init__`, `act`, `update` → `tests/learn/test_ppo.py`
+- [x] CartPole seed 1 >= 475
+- [x] CartPole seed 2 >= 475
+- [x] CartPole seed 3 >= 475
 - **Gate:** `python -m gdrl.train --config configs/cartpole_ppo.yaml --set seed=N`
   then `python -m gdrl.evaluate --run runs/<run>`, `return_mean >= 475` on 3 seeds
 
 ### Mock game
 
-- [ ] Train on the mock levels with `configs/mock_ppo.yaml` (seeds 1 to 5)
-- [ ] Beats the held-out mock seeds in `levels.yaml` (101 to 103)
+- [x] Train on the mock levels with `configs/mock_ppo.yaml` (seeds 1 to 5)
+- [x] Beats the held-out mock seeds in `levels.yaml` (101 to 103)
 
 ## Part 3: the real game
 
@@ -143,10 +148,10 @@ M3 and M6 pass their gates.
 
 ### M8: baselines and a grid observation
 
-- [ ] `gdrl/agents/baselines.py` `RuleBasedAgent`
-- [ ] `gdrl/agents/baselines.py` `GeneticTimingAgent`
-- [ ] `gdrl/features/encoder.py` `GridEncoder` → `tests/learn/test_encoder.py`
-- [ ] `gdrl/agents/networks.py` `GridCNN` → `tests/learn/test_networks.py`
+- [x] `gdrl/agents/baselines.py` `RuleBasedAgent`
+- [x] `gdrl/agents/baselines.py` `GeneticTimingAgent`
+- [x] `gdrl/features/encoder.py` `GridEncoder` → `tests/learn/test_encoder.py`
+- [x] `gdrl/agents/networks.py` `GridCNN` → `tests/learn/test_networks.py`
 - **Gate:** a results table comparing PPO with the baselines
 
 ## Log
@@ -176,3 +181,21 @@ M3 and M6 pass their gates.
   `final_obs`). M5 implemented by Claude: object-list encoder with one-hot
   kinds (84 features at k = 8) and progress-fraction reward; learn tests pass,
   and a rule reading only the observation beats all 8 mock levels.
+- 2026-10-10 (autopilot): all stubs filled in by Claude. CartPole PPO: 500.0
+  on seeds 1, 2, 3 (20 greedy episodes each). Mock PPO (2M steps, default
+  config): seeds 1-3 complete all 5 training and all 3 held-out levels
+  greedily; held-out with sticky 0.1: 0.83 / 0.90 / 0.97.
+- 2026-10-10 (autopilot): the M5 encoder alone did NOT learn on the mock
+  (plateau at ~20% progress, greedy policy = hold the button forever).
+  Behaviour cloning showed why: the jump band is ~6 units wide, ~0.01 of the
+  normalized dx, too fine for a 64x64 tanh MLP. Fix: a Gaussian distance code
+  (RBF every 10 units over -30..180) for the 3 nearest objects. Also added
+  x_speed and the game-mode one-hot to the player features.
+- 2026-10-10 (autopilot): other additions: `train.resume` (continue from a
+  checkpoint), `configs/gd_overnight.yaml`, `overnight.ps1` (auto-resume on
+  crash; tested against the mock server with a killed connection),
+  `gdrl/tools/genetic.py` (beats mock level 1 in 8 generations).
+- 2026-10-10: the GPU currently fails to create a CUDA context ("busy or
+  unavailable"), and torch's Adam.step() touches CUDA even for CPU tensors.
+  Run training with CUDA_VISIBLE_DEVICES=-1 (overnight.ps1 does) until a
+  reboot fixes the GPU.
