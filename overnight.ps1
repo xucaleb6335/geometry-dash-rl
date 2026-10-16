@@ -55,6 +55,9 @@ function Say([string]$msg) {
 
 function Gdctl([string[]]$cmdArgs) {
     # Returns the parsed JSON reply (or $null) and logs a one-line summary.
+    # A minimized GD runs no frames, so every control-mod command would time
+    # out (fullscreen GD minimizes itself when it loses focus).
+    if ($cmdArgs[0] -notin @("lock", "status", "unminimize")) { & $py -m gdctl unminimize *> $null }
     $out = & $py -m gdctl @cmdArgs 2>&1 | Out-String
     $obj = $null
     try { $obj = $out | ConvertFrom-Json } catch { }

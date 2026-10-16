@@ -28,8 +28,9 @@ env:
     explore_eps: 0.3       # random actions on starts passed < 5% of the time (policy was ~deterministic into the same spike)
     snapshot_every: 300    # extra starts from saved game states every 300 units (StartPos are ~2,800 apart; 0% on all segments after 1M steps)
     snapshot_retire_after: 150   # drop save points never passed in 150 tries (pre-UFO one was 0/570)
-    demos:                 # search solution through the UFO tunnel (logs/ufo_search.py): starts every 100 units on it
-      - {start_pos: 4, ticks: configs/demos/bb_ufo_from_sp4.npy, from_x: 10900, every: 100}
+    demos:                 # search solution through the UFO tunnel at the policy's decision rate (4 ticks): starts every 100 units on it
+      - {start_pos: 4, ticks: configs/demos/bb_ufo_4tick.npy, from_x: 10900, to_x: 12550, every: 100, align: 4}
+      - {start_pos: 5, ticks: configs/demos/bb_16k_4tick.npy, from_x: 14900, to_x: 16600, every: 100, align: 4}   # wave + UFO x 14,900-16,700 (searches 2026-10-16 06:30 and 10:30)
     horizon_starts: 2      # mid-level episodes end 2 starts on: hard spots got ~1% of steps otherwise
 agent:
   name: ppo

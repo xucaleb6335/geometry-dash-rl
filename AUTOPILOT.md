@@ -344,3 +344,61 @@ powershell -ExecutionPolicy Bypass -File .\overnight.ps1 -Level saved:141625101 
   handling, +-20 blocks vertically). The SM policy needs `legacy-view`: on
   the current view it dies at 19.4%. `prepare-training` turns both off, so
   training is never capped or fed the old view.
+
+### Bloodbath past the UFO tunnel (2026-10-15 night, loop agent)
+
+- Why it stayed at 30%: the earlier tunnel demo (`bb_ufo_from_sp4.npy`) was
+  searched with 2-tick/1-tick inputs (54 of its 481 4-tick blocks mix press
+  and release), so the 4-tick policy could not reproduce it; and the run that
+  had the demo starts was stopped after 40 minutes (~30 tries per start).
+- A search at the policy's rate (`decision_ticks=4`) from the agent's own
+  state at x 11,400 got through in ~70 s. Root at x 11,002 gave solutions
+  whose replay died (save/load is not exact there). The full demo from
+  StartPos 4 is `configs/demos/bb_ufo_4tick.npy` (valid to x ~12,680; used to
+  12,550). Demo save points are now only on 4-tick boundaries (`align`) and
+  up to `to_x`.
+- `gdrl.tools.demo_bc` cloned it into the 30% policy (plus the policy's own
+  run as retention data): the greedy policy now reaches x 12,688 (32.5%)
+  from the level start, 3/3. Saved as `runs/bc-gd-bb-community/checkpoints/bc.pt`
+  (and `results/watch/bb_ufo_bc.pt`, watch preset `bb_bc`); PPO resumed from it.
+- Attempts are not independent: dynamics depend slightly on how the previous
+  attempt ended (same inputs, y off by 0.4 at x ~1,690; greedy runs ended at
+  10,772 or 11,819 depending on the previous attempt). The bridge now resets
+  player rotation state and resets twice; rotation is now identical across
+  attempts, but a smaller history effect remains (cause not found). demo_bc
+  records several attempts so the clone is robust to it.
+
+### Bloodbath wave at x ~15,000-15,200 (2026-10-16 06:30, loop agent)
+
+- After the tunnel the eval rose 30% -> 38.5% by 03:30, then stayed flat for
+  3 h; deaths clustered at x 15,080-15,165 (wave, mode 4).
+- A 4-tick search from the policy's own state at x 14,900, reached from
+  StartPos 5, got through in 22 s: `configs/demos/bb_15k_4tick.npy` (from
+  StartPos 5, valid to x 15,707). Added as demo starts (14,800-15,600).
+- Searching from states reached from the level start failed (roots 14,600,
+  14,800: unsolved in 600 s; root 14,900: the solution's replay died), so
+  save/load is probably not exact after a long run from the level start.
+- `demo_bc --retain-until-x 14900` (new flag: keep the policy's own actions
+  up to the search root, since the demo opens with the policy's actions from
+  StartPos 5). Result `runs/bc2-gd-bb-community/checkpoints/bc.pt`: from
+  StartPos 5 it follows the demo to 15,655; from the level start it reaches
+  15,002 (the original policy reached 15,138), because it arrives at the wave
+  in a slightly different state. PPO resumed from it with the demo starts.
+- 10:30: flat again at ~40.8% for 2 h (deaths x 15,850 and 16,050, UFO).
+  Searched from x 15,550 (StartPos 5 + current policy); roots 15,750 and
+  15,650 gave solutions whose replay died. `configs/demos/bb_16k_4tick.npy`
+  (StartPos 5, valid to x 16,761) replaces the 15k demo; demo starts now
+  14,900-16,600 (the 14,800 save point killed the player on spawn). BC:
+  `runs/bc3-gd-bb-community/checkpoints/bc.pt` (from StartPos 5 to 16,707;
+  from the level start 15,588, down from 16,045, same arrival-state gap).
+- 13:27: practice spots on the route pass ~100%, but runs from the level
+  start stay at ~40.2% and die at x ~15,850 (100 of 281 deaths): they reach
+  it in a slightly different state than the route from StartPos 5. Next
+  step: search from the policy's own state when played from the level start
+  (several roots between x 15,000 and 15,550, keep only a root whose
+  solution replays alive), then demo_bc with that demo.
+- Stopped 2026-10-16 ~13:50 for a PC restart. Resume with the overnight
+  command above (it resumes from the newest `runs\*gd-bb-community*`
+  checkpoint, `runs/20261016-110740_gd-bb-community_s1`). The best policy
+  from the level start so far is `results/watch/bb_41pct.pt` (watch preset
+  `bb_41`, 40.9%).

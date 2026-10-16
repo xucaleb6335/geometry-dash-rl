@@ -22,3 +22,19 @@ bb:
   checkpoint: results/watch/bb_30pct.pt
   legacy_view: false
   start_pos: -2
+bb_bc:
+  name: Bloodbath (UFO tunnel cloned, 32.5%)
+  dashboard_level: gd:10565740
+  level: saved:77986175
+  config: results/watch/bb_30pct.config.yaml
+  checkpoint: results/watch/bb_ufo_bc.pt   # bb_30pct + behaviour cloning of a 4-tick search path through the tunnel (gdrl.tools.demo_bc)
+  legacy_view: false
+  start_pos: -2
+bb_41:
+  name: Bloodbath (wave cloned, 41%)
+  dashboard_level: gd:10565740
+  level: saved:77986175
+  config: results/watch/bb_41pct.config.yaml
+  checkpoint: results/watch/bb_41pct.pt   # PPO after the wave demo (2026-10-16 10:27), greedy from the start ~40.9%
+  legacy_view: false
+  start_pos: -2

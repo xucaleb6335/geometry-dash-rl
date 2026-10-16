@@ -217,7 +217,10 @@ class StartCurriculum(gym.Wrapper):
                                f"expected {float(start['x']):.1f}")
         self.ep_len = 0
         self.last_save_x = self.max_x
-        self.explore_eps = (self.explore_eps_cfg if i > 0 and forced is None
+        # Not on demo starts: they sit on a searched path through frame-tight
+        # parts (Bloodbath's UFO tunnel), where random presses only kill, and
+        # the policy was cloned onto that path already. Patience, not noise.
+        self.explore_eps = (self.explore_eps_cfg if i > 0 and forced is None and not start.get("demo")
                             and self.success[i] < self.explore_below else 0.0)
         info["start"] = i
         return obs, info
@@ -290,13 +293,20 @@ class StartCurriculum(gym.Wrapper):
         for d in self.demos:
             ticks = np.load(d["ticks"]).astype(bool)
             every, nxt = float(d.get("every", 100.0)), float(d.get("from_x", 0.0))
+            # Save points only on decision boundaries (every `align` ticks from
+            # the reset), so a policy acting every frame_skip ticks from a
+            # save point is in phase with the demo's inputs.
+            align = max(1, int(d.get("align", 1)))
+            to_x = float(d.get("to_x", float("inf")))  # no save points past here (e.g. where the demo stops being valid)
             state = backend.reset(0, int(d.get("start_pos", -1)))
+            t = 0
             for button, n in runs(ticks):
                 for _ in range(n):  # one tick at a time, so no save point is skipped
                     state = backend.step(bool(button), 1)
+                    t += 1
                     if state.dead or state.completed:
                         break
-                    if state.player_x >= nxt and self.free_slots:
+                    if nxt <= state.player_x <= to_x and t % align == 0 and self.free_slots:
                         slot = self.free_slots.pop()
                         backend.save_state(slot)
                         self.starts.append({"name": f"demo@{state.player_x:.0f}", "slot": slot,

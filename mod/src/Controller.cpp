@@ -279,9 +279,30 @@ void Controller::handleReset(const proto::Reset& msg) {
     // GD caches the spawn state of the active Start Pos as m_currentCheckpoint
     // and respawns from it; drop it so the new Start Pos is used (same as the
     // common Start Pos switcher mods).
+    // Player rotation state survives resetLevel (rotation actions and the
+    // smoothing fields), so it depended on how the last attempt ended.
+    for (auto* p : {m_layer->m_player1, m_layer->m_player2}) {
+        if (!p) continue;
+        p->stopAllActions();
+        p->m_rotationSpeed = 0.f;
+        p->m_rotateSpeed = 0.f;
+        p->m_isRotating = false;
+        p->m_isBallRotating = false;
+        p->m_isBallRotating2 = false;
+        p->m_shipRotation = CCPointZero;
+        p->setRotation(0.f);
+    }
     m_layer->m_currentCheckpoint = nullptr;
     m_layer->setStartPosObject(startPos);
     m_layer->resetLevel();  // fires onLevelReset through the hook: tick 0
+    // Reset twice. A single resetLevel leaves some state from how the last
+    // attempt ended (player rotation state, trigger-driven object state): on
+    // Bloodbath consecutive attempts alternated between two dynamics (same
+    // inputs, y off by 0.4 at x 10,649; the greedy policy died at 11,819 or
+    // 10,772 by parity). The second reset starts from a fresh tick-0 attempt.
+    m_layer->m_currentCheckpoint = nullptr;
+    m_layer->setStartPosObject(startPos);
+    m_layer->resetLevel();
     sendCurrentState();
 }
 
