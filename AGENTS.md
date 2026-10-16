@@ -1,5 +1,9 @@
 # AGENTS.md
 
+> **Autopilot copy. Read `AUTOPILOT.md` before anything else.** It has the
+> status, what changed, the open CUDA problem and the rule: never touch the
+> original project at `..\geometry-dash-rl`.
+
 Notes for AI agents (and future me) working in this repo. Read README.md for
 the architecture and LEARNING.md for the milestone map first.
 
