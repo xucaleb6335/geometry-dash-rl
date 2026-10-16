@@ -1,0 +1,35 @@
+# M8 on the mock game: PPO on the GridEncoder observation with a GridCNN trunk.
+# Same env, reward, PPO hyperparameters and step budget as configs/mock_ppo.yaml;
+# only the encoder (and so the network) changes.
+name: mock-ppo-grid
+seed: 1
+env:
+  id: gd
+  backend: mock
+  level_ids: [1, 2, 3, 4, 5]      # training levels; held-out ones live in levels.yaml
+  frame_skip: 4
+  max_steps: 2000
+  # binary one-block grid (default GridEncoder). A coverage-fill / 3-columns variant was tried
+  # and was worse; see results/m8_mock.md and results/gridencoder_coverage.patch.
+  encoder: {name: grid, width_blocks: 16, height_blocks: 8, rows_below: 2, channels: 3}
+  reward: {name: progress, progress_scale: 1.0, death_penalty: -1.0, completion_bonus: 1.0}
+agent:
+  name: ppo
+  rollout_steps: 256
+  num_minibatches: 4
+  update_epochs: 4
+  learning_rate: 2.5e-4
+  gamma: 0.99
+  gae_lambda: 0.95
+  ent_coef: 0.01
+  hidden_sizes: [64, 64]          # the CNN trunk outputs hidden_sizes[-1] features
+  device: auto
+train:
+  num_envs: 8
+  total_steps: 2000000
+  checkpoint_every: 50
+  tensorboard: false
+  torch_threads: 3                # the CNN update dominates; 3 threads is ~2.3x faster than 1
+eval:
+  episodes: 20
+  sticky_prob: 0.1

@@ -1,0 +1,73 @@
+diff --git a/gdrl/features/encoder.py b/gdrl/features/encoder.py
+index 877bc7f..93f4f1f 100644
+--- a/gdrl/features/encoder.py
++++ b/gdrl/features/encoder.py
+@@ -160,32 +160,60 @@ class GridEncoder(Encoder):
+     A cell is 1.0 when a hitbox overlaps it at all (touching an edge does not
+     count). The ground (y < 0) is drawn as solid, since a grid has no other
+     way to show where the floor is. Portals and other kinds are not drawn.
++
++    Two options for horizontal precision (M8, see results/m8_mock.md). With
++    one-block cells and binary fill the grid only changes when a hitbox edge
++    crosses a cell boundary, so it cannot say where inside a 30-unit cell an
++    obstacle is; the cube's jump window over a triple spike is ~16 units.
++
++    - ``fill="coverage"``: a cell holds the fraction of its area the hitbox
++      covers instead of 1.0, so a hitbox's position inside a cell is visible
++      (anti-aliasing). Overlapping hitboxes in one channel add, capped at 1.
++    - ``x_cells_per_block``: split each block into this many columns (the
++      grid is then ``width_blocks * x_cells_per_block`` wide).
+     """
+ 
+     CHANNEL_OF_KIND = {ObjectKind.SOLID: 0, ObjectKind.HAZARD: 1, ObjectKind.ORB: 2, ObjectKind.PAD: 2}
++    FILLS = ("binary", "coverage")
+ 
+-    def __init__(self, width_blocks: int = 16, height_blocks: int = 8, rows_below: int = 2, channels: int = 3):
+-        self.width = width_blocks
++    def __init__(self, width_blocks: int = 16, height_blocks: int = 8, rows_below: int = 2, channels: int = 3,
++                 fill: str = "binary", x_cells_per_block: int = 1):
++        if fill not in self.FILLS:
++            raise ValueError(f"fill must be one of {self.FILLS}, got {fill!r}")
++        self.width = width_blocks * x_cells_per_block
+         self.height = height_blocks
+         self.rows_below = rows_below
+         self.channels = channels
+-        self.observation_space = spaces.Box(0.0, 1.0, shape=(channels, height_blocks, width_blocks), dtype=np.float32)
++        self.fill = fill
++        self.cell_w = BLOCK / x_cells_per_block
++        self.observation_space = spaces.Box(0.0, 1.0, shape=(channels, self.height, self.width), dtype=np.float32)
+ 
+     def encode(self, state: GameState) -> np.ndarray:
+         grid = np.zeros(self.observation_space.shape, dtype=np.float32)
+         x0 = state.player_x - BLOCK  # left edge of column 0
+         y0 = state.player_y - self.rows_below * BLOCK  # bottom edge of row 0
++        cw = self.cell_w
+ 
+         def mark(channel: int, left: float, right: float, bottom: float, top: float) -> None:
+             # Cells [c0, c1) x [r0, r1) that the open box overlaps.
+-            c0 = max(0, int(np.floor((left - x0) / BLOCK)))
+-            c1 = min(self.width, int(np.ceil((right - x0) / BLOCK)))
++            c0 = max(0, int(np.floor((left - x0) / cw)))
++            c1 = min(self.width, int(np.ceil((right - x0) / cw)))
+             r0 = max(0, int(np.floor((bottom - y0) / BLOCK)))
+             r1 = min(self.height, int(np.ceil((top - y0) / BLOCK)))
+-            if c0 < c1 and r0 < r1:
++            if not (c0 < c1 and r0 < r1):
++                return
++            if self.fill == "binary":
+                 grid[channel, r0:r1, c0:c1] = 1.0
+-
+-        mark(0, x0, x0 + self.width * BLOCK, y0, 0.0)  # the ground
++                return
++            # Overlap of [left, right] with each column, and of [bottom, top] with each row, as fractions.
++            cols = x0 + cw * np.arange(c0, c1 + 1)
++            fx = (np.minimum(cols[1:], right) - np.maximum(cols[:-1], left)) / cw
++            rows = y0 + BLOCK * np.arange(r0, r1 + 1)
++            fy = (np.minimum(rows[1:], top) - np.maximum(rows[:-1], bottom)) / BLOCK
++            cell = grid[channel, r0:r1, c0:c1]
++            np.minimum(cell + np.outer(fy, fx).astype(np.float32), 1.0, out=cell)
++
++        mark(0, x0, x0 + self.width * cw, y0, 0.0)  # the ground
+         for obj in state.objects:
+             channel = self.CHANNEL_OF_KIND.get(int(obj["kind"]))  # IntEnum keys match ints
+             if channel is None or channel >= self.channels:

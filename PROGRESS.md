@@ -199,3 +199,13 @@ M3 and M6 pass their gates.
   unavailable"), and torch's Adam.step() touches CUDA even for CPU tensors.
   Run training with CUDA_VISIBLE_DEVICES=-1 (overnight.ps1 does) until a
   reboot fixes the GPU.
+- 2026-10-11 (autopilot): M8 mock comparison done (`results/m8_mock.md`).
+  Object-list PPO: 100% train and held-out greedy, 91% held-out with sticky
+  0.1 (3/3 seeds). Binary grid+CNN learns on 3/3 seeds but generalizes worse
+  (89% held-out greedy, 48% sticky) and is 2-5x slower. Rule and genetic are
+  brittle under sticky actions; random 0%. A coverage-fill GridEncoder variant
+  was worse (1/3 seeds learned) and was reverted (patch in `results/`).
+- 2026-10-11 (autopilot): `gdctl` + `control-mod/` let agents launch, build
+  and drive GD; `overnight.ps1` recovers from GD crashes. CUDA fixed with the
+  user env var CUDA_MODULE_LOADING=LAZY. Level beats are logged in
+  `holistic_progress/` (`python -m gdrl.tools.record_beat`).

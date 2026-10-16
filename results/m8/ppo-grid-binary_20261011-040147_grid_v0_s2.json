@@ -1,0 +1,129 @@
+{
+  "agent": "ppo-grid-binary",
+  "source": "runs\\m8\\20261011-040147_grid_v0_s2",
+  "set": [],
+  "train_levels": [
+    1,
+    2,
+    3,
+    4,
+    5
+  ],
+  "heldout_levels": [
+    101,
+    102,
+    103
+  ],
+  "results": {
+    "greedy": {
+      "sticky_prob": 0.0,
+      "levels": {
+        "1": {
+          "episodes": 20,
+          "completion_rate": 1.0,
+          "progress_mean": 1.0,
+          "return_mean": 1.9967320261437904
+        },
+        "2": {
+          "episodes": 20,
+          "completion_rate": 1.0,
+          "progress_mean": 1.0,
+          "return_mean": 1.996527777777778
+        },
+        "3": {
+          "episodes": 20,
+          "completion_rate": 1.0,
+          "progress_mean": 1.0,
+          "return_mean": 1.996527777777778
+        },
+        "4": {
+          "episodes": 20,
+          "completion_rate": 1.0,
+          "progress_mean": 1.0,
+          "return_mean": 1.9969696969696975
+        },
+        "5": {
+          "episodes": 20,
+          "completion_rate": 1.0,
+          "progress_mean": 1.0,
+          "return_mean": 1.9966442953020132
+        },
+        "101": {
+          "episodes": 20,
+          "completion_rate": 1.0,
+          "progress_mean": 1.0,
+          "return_mean": 1.9970059880239517
+        },
+        "102": {
+          "episodes": 20,
+          "completion_rate": 1.0,
+          "progress_mean": 1.0,
+          "return_mean": 1.9967948717948711
+        },
+        "103": {
+          "episodes": 20,
+          "completion_rate": 1.0,
+          "progress_mean": 1.0,
+          "return_mean": 1.9968750000000004
+        }
+      }
+    },
+    "sticky": {
+      "sticky_prob": 0.1,
+      "levels": {
+        "1": {
+          "episodes": 20,
+          "completion_rate": 0.85,
+          "progress_mean": 0.9469255637254882,
+          "return_mean": 1.6436575898692787
+        },
+        "2": {
+          "episodes": 20,
+          "completion_rate": 0.95,
+          "progress_mean": 0.9815479861111107,
+          "return_mean": 1.8780757638888885
+        },
+        "3": {
+          "episodes": 20,
+          "completion_rate": 0.85,
+          "progress_mean": 0.9436071614583323,
+          "return_mean": 1.6401349392361102
+        },
+        "4": {
+          "episodes": 20,
+          "completion_rate": 0.8,
+          "progress_mean": 0.8586470151515149,
+          "return_mean": 1.4556167121212116
+        },
+        "5": {
+          "episodes": 20,
+          "completion_rate": 0.75,
+          "progress_mean": 0.8263087835570488,
+          "return_mean": 1.322953078859062
+        },
+        "101": {
+          "episodes": 20,
+          "completion_rate": 0.55,
+          "progress_mean": 0.7622416691616698,
+          "return_mean": 0.859247657185622
+        },
+        "102": {
+          "episodes": 20,
+          "completion_rate": 0.6,
+          "progress_mean": 0.7436179647435917,
+          "return_mean": 0.9404128365384634
+        },
+        "103": {
+          "episodes": 20,
+          "completion_rate": 0.4,
+          "progress_mean": 0.6991742499999936,
+          "return_mean": 0.49604924999999345
+        }
+      }
+    }
+  },
+  "env_steps": 2000896,
+  "train_seconds": 2113.6545906066895,
+  "seed": 2,
+  "eval_seconds": 1224.3651297092438
+}

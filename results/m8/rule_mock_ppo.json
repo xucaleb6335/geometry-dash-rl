@@ -1,0 +1,128 @@
+{
+  "agent": "rule",
+  "source": "configs\\mock_ppo.yaml",
+  "set": [
+    "agent={name: rule}"
+  ],
+  "train_levels": [
+    1,
+    2,
+    3,
+    4,
+    5
+  ],
+  "heldout_levels": [
+    101,
+    102,
+    103
+  ],
+  "results": {
+    "greedy": {
+      "sticky_prob": 0.0,
+      "levels": {
+        "1": {
+          "episodes": 20,
+          "completion_rate": 1.0,
+          "progress_mean": 1.0,
+          "return_mean": 1.9967320261437904
+        },
+        "2": {
+          "episodes": 20,
+          "completion_rate": 1.0,
+          "progress_mean": 1.0,
+          "return_mean": 1.996527777777778
+        },
+        "3": {
+          "episodes": 20,
+          "completion_rate": 1.0,
+          "progress_mean": 1.0,
+          "return_mean": 1.996527777777778
+        },
+        "4": {
+          "episodes": 20,
+          "completion_rate": 1.0,
+          "progress_mean": 1.0,
+          "return_mean": 1.9969696969696975
+        },
+        "5": {
+          "episodes": 20,
+          "completion_rate": 1.0,
+          "progress_mean": 1.0,
+          "return_mean": 1.9966442953020132
+        },
+        "101": {
+          "episodes": 20,
+          "completion_rate": 1.0,
+          "progress_mean": 1.0,
+          "return_mean": 1.9970059880239517
+        },
+        "102": {
+          "episodes": 20,
+          "completion_rate": 1.0,
+          "progress_mean": 1.0,
+          "return_mean": 1.9967948717948711
+        },
+        "103": {
+          "episodes": 20,
+          "completion_rate": 1.0,
+          "progress_mean": 1.0,
+          "return_mean": 1.9968750000000004
+        }
+      }
+    },
+    "sticky": {
+      "sticky_prob": 0.1,
+      "levels": {
+        "1": {
+          "episodes": 20,
+          "completion_rate": 0.45,
+          "progress_mean": 0.6957920179738553,
+          "return_mean": 0.5925240441176461
+        },
+        "2": {
+          "episodes": 20,
+          "completion_rate": 0.35,
+          "progress_mean": 0.6122224913194476,
+          "return_mean": 0.3087502690972253
+        },
+        "3": {
+          "episodes": 20,
+          "completion_rate": 0.35,
+          "progress_mean": 0.5545825954861102,
+          "return_mean": 0.2511103732638878
+        },
+        "4": {
+          "episodes": 20,
+          "completion_rate": 0.4,
+          "progress_mean": 0.6534688636363575,
+          "return_mean": 0.4504385606060543
+        },
+        "5": {
+          "episodes": 20,
+          "completion_rate": 0.45,
+          "progress_mean": 0.7226629110738203,
+          "return_mean": 0.6193072063758339
+        },
+        "101": {
+          "episodes": 20,
+          "completion_rate": 0.4,
+          "progress_mean": 0.6704123652694556,
+          "return_mean": 0.46741835329340764
+        },
+        "102": {
+          "episodes": 20,
+          "completion_rate": 0.25,
+          "progress_mean": 0.49767045673076893,
+          "return_mean": -0.0055346714743592425
+        },
+        "103": {
+          "episodes": 20,
+          "completion_rate": 0.3,
+          "progress_mean": 0.5932930156249968,
+          "return_mean": 0.1901680156249967
+        }
+      }
+    }
+  },
+  "eval_seconds": 34.302125215530396
+}
