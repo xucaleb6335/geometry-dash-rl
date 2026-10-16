@@ -16,8 +16,14 @@ namespace gdrl {
 
 struct ByeMsg {};
 
+// v2: SAVE_STATE, LOAD_STATE or DROP_STATE.
+struct SnapshotMsg {
+    proto::MsgType type;
+    proto::Snapshot msg;
+};
+
 // A message the client sent us, already validated against the protocol.
-using Incoming = std::variant<proto::Hello, proto::Reset, proto::Step, ByeMsg>;
+using Incoming = std::variant<proto::Hello, proto::Reset, proto::Step, ByeMsg, SnapshotMsg>;
 
 class Bridge {
 public:
@@ -45,8 +51,15 @@ public:
     // On disconnect it drops the client and returns nullopt.
     std::optional<Incoming> receive(int timeoutMs);
 
-    bool sendHelloAck(uint16_t tickRate);
-    bool sendState(const proto::State& state);
+    // The protocol version agreed in HELLO (1 until then, and for each new
+    // client). It goes in every header and picks the STATE layout.
+    void setVersion(uint16_t version) { m_version = version; }
+    uint16_t version() const { return m_version; }
+
+    bool sendHelloAck(uint16_t tickRate);  // v1 ack (standalone server)
+    bool sendHelloAck(uint16_t tickRate, uint16_t maxSnapshots);  // in the agreed version
+    bool sendState(const proto::State& state);  // v1 layout
+    bool sendState(const proto::StateV2& state);  // v2 layout, or its v1 view for a v1 client
     bool sendError(proto::ErrorCode code, std::string_view message);
 
     void dropClient();
@@ -61,6 +74,7 @@ private:
     intptr_t m_listen = -1;
     intptr_t m_client = -1;
     uint16_t m_port = 0;
+    uint16_t m_version = 1;
 };
 
 }  // namespace gdrl

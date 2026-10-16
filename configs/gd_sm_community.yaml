@@ -1,0 +1,55 @@
+# Stereo Madness with the StartPos objects of a community copy (no level
+# files of our own). The copy, 'SM Start Pos' (online id 141625101), is the
+# original plus 29 StartPos objects (checked offline and in game; see
+# configs/starts/sm_community.yaml). It is played as downloaded; the bridge's
+# RESET picks the start: start_pos k = the k-th StartPos by x, -2 = the real
+# level start (needs bridge protocol v2, mod v0.2.0).
+#
+#   powershell -ExecutionPolicy Bypass -File .\overnight.ps1 -Level saved:141625101 `
+#       -Config configs/gd_sm_community.yaml -RunFilter "*gd-sm-community*"
+#
+# Switching starts costs nothing (one RESET), so every episode picks a start
+# and every update mixes many parts of the level; no frontier gating.
+# eval/* is one greedy run from the real level start every eval_every updates.
+name: gd-sm-community
+seed: 1
+env:
+  id: gd
+  backend: socket
+  host: 127.0.0.1
+  port: 5555
+  timeout: 30.0
+  level_ids: [0]
+  start_pos: -2            # plain resets (gdrl.evaluate) start at the real level start, not GD's StartPos
+  frame_skip: 4
+  max_steps: 15000
+  encoder: {name: object_list, k: 8, focus: obstacles, profile: true}   # focus: floor blocks hid spikes; profile: pit spikes hid slab edges
+  reward: {name: progress}
+  curriculum:
+    starts: configs/starts/sm_community.yaml
+    p_first: 0.2           # share of episodes from the real level start
+    min_weight: 0.1        # starts the agent already passes still get some play
+    log_path: logs/sm_community_episodes.csv
+    explore_eps: 0.3       # random actions on starts passed < 5% of the time (policy was ~deterministic into the same spike)
+    horizon_starts: 2      # mid-level episodes end 2 starts on: hard spots got ~1% of steps otherwise
+agent:
+  name: ppo
+  rollout_steps: 4096
+  num_minibatches: 8
+  update_epochs: 10
+  learning_rate: 2.5e-4
+  gamma: 0.99
+  gae_lambda: 0.95
+  ent_coef: 0.02          # 9 starts stuck at 0% with the same death spot for 300k+ steps at 0.01
+  hidden_sizes: [128, 128]  # one net for the whole level (cube and ship parts)
+  device: cuda            # updates on the GPU
+  act_device: cpu         # per-step actions on the CPU: act() on cuda was 1.8 ms/step, 2.5x the game's own step
+train:
+  num_envs: 1
+  total_steps: 30000000
+  checkpoint_every: 5     # updates (every 20,480 steps)
+  eval_every: 10          # updates: one greedy episode from the level start
+  eval_options: {start: 0}
+eval:
+  episodes: 20
+  sticky_prob: 0.1

@@ -57,8 +57,21 @@ class $modify(RLPlayLayer, PlayLayer) {
         PlayLayer::showEndLayer();
     }
 
+    // The player crossed the end; runs inside a physics tick, so under the
+    // agent the STEP that crossed it already reports COMPLETED.
+    void playEndAnimationToPos(CCPoint position) {
+        PlayLayer::playEndAnimationToPos(position);
+        gdrl::Controller::get().onEndAnimation();
+    }
+
+    // GD calls this when the end animation finishes, in real time. Under
+    // lockstep the client has usually reset by then: that call is stale and
+    // is dropped (it would mark the next attempt completed and, once the
+    // client has gone, open the end screen over a fresh attempt).
     void levelComplete() {
-        gdrl::Controller::get().onComplete();
+        auto& controller = gdrl::Controller::get();
+        if (!controller.completionIsCurrent()) return;
+        controller.onComplete();
         PlayLayer::levelComplete();
     }
 

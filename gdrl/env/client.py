@@ -12,10 +12,13 @@ from gdrl.env.protocol import (
     HELLO_ACK,
     PROTOCOL_VERSION,
     RESET,
+    SNAPSHOT,
     STEP,
+    ErrorCode,
     GameState,
     MsgType,
     ProtocolError,
+    ServerError,
     decode_error,
     decode_header,
     encode_frame,
@@ -43,6 +46,7 @@ class ServerInfo:
     protocol_version: int
     tick_rate: int
     max_objects: int
+    max_snapshots: int = 0  # v2: SAVE_STATE slots 0 .. max_snapshots - 1; 0 = no snapshots
 
 
 class GDClient:
@@ -53,24 +57,61 @@ class GDClient:
     ...     state = c.step(button=True, ticks=4)
     """
 
-    def __init__(self, host: str = "127.0.0.1", port: int = DEFAULT_PORT, timeout: float | None = 10.0):
+    def __init__(self, host: str = "127.0.0.1", port: int = DEFAULT_PORT, timeout: float | None = 10.0,
+                 version: int = PROTOCOL_VERSION):
         self.host = host
         self.port = port
         self.timeout = timeout
+        self.version = version  # asked for; lowered to 1 if the server rejects it
         self._sock: socket.socket | None = None
         self.info: ServerInfo | None = None
 
     def connect(self) -> ServerInfo:
+        """Handshake at ``version``; if the server says VERSION_MISMATCH, retry at 1."""
+        try:
+            self.info = self._connect_at(self.version)
+        except ServerError as exc:
+            if exc.code != ErrorCode.VERSION_MISMATCH or self.version == 1:
+                raise
+            self._drop()
+            self.version = 1
+            self.info = self._connect_at(1)
+        return self.info
+
+    def _connect_at(self, version: int) -> ServerInfo:
         sock = socket.create_connection((self.host, self.port), timeout=self.timeout)
         sock.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
         self._sock = sock
-        self.info = self._hello()
-        return self.info
+        self.version = version
+        reply = self._request(MsgType.HELLO, HELLO.pack(version, 0), MsgType.HELLO_ACK)
+        server_version, tick_rate, max_objects, last = HELLO_ACK.unpack(reply)
+        return ServerInfo(server_version, tick_rate, max_objects, last if server_version >= 2 else 0)
 
-    def _hello(self) -> ServerInfo:
-        reply = self._request(MsgType.HELLO, HELLO.pack(PROTOCOL_VERSION, 0), MsgType.HELLO_ACK)
-        version, tick_rate, max_objects, _ = HELLO_ACK.unpack(reply)
-        return ServerInfo(version, tick_rate, max_objects)
+    def _drop(self) -> None:
+        if self._sock is not None:
+            self._sock.close()
+            self._sock = None
+
+    @property
+    def supports_snapshots(self) -> bool:
+        return self.info is not None and self.info.protocol_version >= 2 and self.info.max_snapshots > 0
+
+    def save_state(self, slot: int) -> GameState:
+        """v2: snapshot the current game state into ``slot`` (overwriting it). Replies the current STATE."""
+        return self._snapshot(MsgType.SAVE_STATE, slot)
+
+    def load_state(self, slot: int) -> GameState:
+        """v2: restore the snapshot in ``slot``. Replies the restored STATE (its tick is the saved tick)."""
+        return self._snapshot(MsgType.LOAD_STATE, slot)
+
+    def drop_state(self, slot: int) -> GameState:
+        """v2: free ``slot``. Replies the current STATE unchanged."""
+        return self._snapshot(MsgType.DROP_STATE, slot)
+
+    def _snapshot(self, msg_type: MsgType, slot: int) -> GameState:
+        if not self.supports_snapshots:
+            raise ServerError(ErrorCode.UNSUPPORTED, "the server does not support snapshots (protocol v1?)")
+        return GameState.from_bytes(self._request(msg_type, SNAPSHOT.pack(slot, 0), MsgType.STATE))
 
     def reset(self, level_id: int = 0, start_pos: int = -1) -> GameState:
         reply = self._request(MsgType.RESET, RESET.pack(level_id, start_pos), MsgType.STATE)
@@ -86,7 +127,7 @@ class GDClient:
         if self._sock is None:
             return
         try:
-            self._sock.sendall(encode_frame(MsgType.BYE))
+            self._sock.sendall(encode_frame(MsgType.BYE, version=self.version))
         except OSError:
             pass
         self._sock.close()
@@ -95,7 +136,7 @@ class GDClient:
     def _request(self, msg_type: MsgType, payload: bytes, expect: MsgType) -> bytes:
         if self._sock is None:
             raise ConnectionError("not connected; call connect() first")
-        self._sock.sendall(encode_frame(msg_type, payload))
+        self._sock.sendall(encode_frame(msg_type, payload, version=self.version))
         reply_type, reply = read_frame(self._sock)
         if reply_type == MsgType.ERROR:
             raise decode_error(reply)

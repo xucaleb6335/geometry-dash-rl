@@ -20,7 +20,8 @@ def server():
 def test_handshake(server):
     with GDClient(port=server.port) as client:
         assert client.info.tick_rate == 240
-        assert client.info.max_objects == 32
+        assert client.info.protocol_version == 2
+        assert client.info.max_objects == 64  # 32 in protocol v1
 
 
 def test_reset_and_step(server):

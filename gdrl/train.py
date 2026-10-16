@@ -33,6 +33,46 @@ def _store_extras(buffers: dict[str, np.ndarray], t: int, extras: dict[str, np.n
         buffers[key][t] = value
 
 
+def greedy_episode(agent, env, options: dict[str, Any] | None = None) -> dict[str, float]:
+    """Run one deterministic episode on a single (unvectorized) env."""
+    obs, info = env.reset(options=dict(options) if options else None)
+    total, length = 0.0, 0
+    while True:
+        action = int(agent.act(obs[None], deterministic=True).action[0])
+        obs, reward, terminated, truncated, info = env.step(action)
+        total += float(reward)
+        length += 1
+        if terminated or truncated:
+            break
+    return {"return": total, "length": float(length), "progress": float(info.get("progress", 0.0)),
+            "completed": float(bool(info.get("completed", False)))}
+
+
+def _explore(out, envs, rng: np.random.Generator) -> None:
+    """Epsilon exploration for envs that ask for it (``explore_eps`` attribute,
+    set by the curriculum on starts the agent never passes).
+
+    With probability eps the action is replaced by a uniform random one, and
+    the stored log-probability is that of the behaviour policy,
+    ``(1 - eps) * pi(a) + eps / n``, so PPO's ratio stays consistent. Two
+    actions only (the policy's own probability of the other action is
+    ``1 - pi(sampled)``)."""
+    if "logprob" not in out.extras:
+        return
+    for i, env in enumerate(envs.envs):
+        eps = float(getattr(env, "explore_eps", 0.0) or 0.0)
+        if eps <= 0.0:
+            continue
+        a = int(out.action[i])
+        p_a = float(np.exp(out.extras["logprob"][i]))
+        if rng.random() < eps:
+            new = int(rng.integers(2))
+            p_new = p_a if new == a else 1.0 - p_a
+            a, p_a = new, p_new
+            out.action[i] = a
+        out.extras["logprob"][i] = np.log((1.0 - eps) * p_a + eps / 2.0 + 1e-12)
+
+
 def train(cfg: dict[str, Any]) -> Path:
     seed = int(cfg["seed"])
     tcfg = cfg["train"]
@@ -76,6 +116,8 @@ def train(cfg: dict[str, Any]) -> Path:
         global_step = update * T * num_envs
         print(f"resumed from {tcfg['resume']} at update {update}, step {global_step}")
     started = time.time()
+    rng_explore = np.random.default_rng(int(cfg.get("seed", 0)) + 12345)
+    start_step = global_step  # steps per second counts this session only (not resumed steps)
     print(f"run dir: {run_dir}")
 
     try:
@@ -91,6 +133,7 @@ def train(cfg: dict[str, Any]) -> Path:
 
             for t in range(T):
                 out = agent.act(obs)
+                _explore(out, envs, rng_explore)
                 next_obs, reward, terminated, truncated, info = envs.step(out.action)
 
                 obs_buf[t], act_buf[t], rew_buf[t] = obs, out.action, reward
@@ -127,7 +170,7 @@ def train(cfg: dict[str, Any]) -> Path:
             metrics = {f"train/{k}": v for k, v in agent.update(rollout).items()}
             update += 1
 
-            sps = global_step / max(time.time() - started, 1e-9)
+            sps = (global_step - start_step) / max(time.time() - started, 1e-9)
             metrics["perf/steps_per_second"] = sps
             if finished:
                 for key in finished[0]:
@@ -142,6 +185,19 @@ def train(cfg: dict[str, Any]) -> Path:
                 if "episode/progress_mean" in metrics:
                     line += f"  progress {metrics['episode/progress_mean']:6.1%}"
             print(line, flush=True)
+
+            eval_every = int(tcfg.get("eval_every", 0) or 0)
+            if eval_every and update % eval_every == 0:
+                # One greedy episode from eval_options (e.g. {start: 0}, the
+                # level start under a curriculum). The episode in progress is
+                # dropped; the rollout already bootstrapped from its last state.
+                result = greedy_episode(agent, envs.envs[0], tcfg.get("eval_options"))
+                logger.log(global_step, {f"eval/{k}": v for k, v in result.items()})
+                print(f"eval  step {global_step:>9d}  progress {result['progress']:6.1%}  "
+                      f"completed {int(result['completed'])}  length {int(result['length'])}", flush=True)
+                obs, _ = envs.reset()
+                ep_return[:] = 0.0
+                ep_length[:] = 0
 
             if update % int(tcfg["checkpoint_every"]) == 0:
                 agent.save(run_dir / "checkpoints" / f"update_{update:06d}.pt")

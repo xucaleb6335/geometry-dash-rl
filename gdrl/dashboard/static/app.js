@@ -125,6 +125,38 @@ async function loadState() {
     return true;
   } catch (e) { S.err = e.message; return false; }
 }
+/* Watch: play a policy in GD at 1x (server runs python -m gdrl.tools.watch). */
+async function loadWatch() {
+  if (SNAP) return false;
+  try {
+    const w = await getJSON("/api/watch");
+    const changed = JSON.stringify(w) !== JSON.stringify(S.watch);
+    S.watch = w; return changed;
+  } catch (e) { return false; }
+}
+async function postWatch(path, body) {
+  try {
+    const r = await fetch(path, { method: "POST", headers: { "Content-Type": "application/json", "X-GDRL": "1" }, body: JSON.stringify(body || {}) });
+    const d = await r.json();
+    if (!d.ok) S.watchErr = d.error || "failed"; else S.watchErr = null;
+  } catch (e) { S.watchErr = e.message; }
+  await loadWatch(); lastHTML = ""; render();
+}
+function watchPanel(onlyLevel) {
+  const w = S.watch; if (SNAP || !w) return "";
+  const ps = (w.presets || []).filter(p => !onlyLevel || p.level === onlyLevel);
+  if (!ps.length) return "";
+  const running = w.running, job = w.job;
+  const btns = ps.map(p => `<button class="btn play" data-play="${esc(p.id)}" ${running ? "disabled" : ""}>&#9654; ${esc(p.name)}</button>`).join("");
+  const att = onlyLevel ? "" : `<label class="note">attempts <input type="number" id="play-n" min="1" max="50" value="${S.ui.playN || 1}" style="width:56px"></label>`;
+  const stop = running ? `<button class="btn" id="play-stop">&#9632; Stop</button>` : "";
+  const st = running ? `<span class="pulse"></span> playing <b>${esc(job?.name)}</b> in Geometry Dash at 1x`
+    : job ? `last: ${esc(job.name)} ${job.exit === 0 ? "finished" : "ended (exit " + esc(job.exit) + ")"}` : "Opens the level in GD (launches it if needed) and plays the policy at 1x.";
+  const log = (w.log || []).length && (running || job) ? `<pre class="watchlog">${esc(w.log.join("
+"))}</pre>` : "";
+  return `<div class="watch"><div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center"><b>Watch in game</b>${btns}${att}${stop}</div>
+    <div class="note" style="margin-top:6px">${st}${S.watchErr ? ` &middot; <span style="color:#ff5c7a">${esc(S.watchErr)}</span>` : ""}</div>${log}</div>`;
+}
 async function loadDetail(id) {
   if (SNAP) { S.detail[id] = SNAP.details[id] || null; return; }
   const r = S.state.runs.find(x => x.id === id);
@@ -178,7 +210,9 @@ function ledgerPass(b) {
 
 /* ------------------------------------------------------------------ chrome */
 function renderNav() {
-  $("#nav").innerHTML = NAV.map(([id, label, d]) => `<a data-v="${id}" class="${S.view === id ? "on" : ""}" href="#${id}"><svg viewBox="0 0 24 24"><path d="${d}"/></svg><span>${label}</span></a>`).join("");
+  const hide = new Set();
+  if (S.state && !(S.state.compare?.rows || []).length) hide.add("compare");
+  $("#nav").innerHTML = NAV.filter(n => !hide.has(n[0])).map(([id, label, d]) => `<a data-v="${id}" class="${S.view === id ? "on" : ""}" href="#${id}"><svg viewBox="0 0 24 24"><path d="${d}"/></svg><span>${label}</span></a>`).join("");
 }
 function renderLivebox() {
   const st = S.state; if (!st) return;
@@ -257,14 +291,14 @@ function viewOverview() {
   const lv = st.levels.filter(levelPass);
   const groups = st.groups.filter(g => lv.some(l => l.group === g));
   const tr = st.levels.filter(l => l.status !== "untrained").length;
-  let h = `<div class="pageh"><div><h1>Level board</h1><p>Every level the agents are working toward, from mock tiers to extreme demons.</p></div><span class="spacer"></span>
+  let h = `<div class="pageh"><div><h1>Level board</h1><p>Real-game levels the agents are working toward, from Stereo Madness to extreme demons.</p></div><span class="spacer"></span>
     <label class="note"><input type="checkbox" id="hide-un" ${S.ui.hideUntrained ? "checked" : ""}> hide untrained</label></div>
     <div class="grid stats">
       ${statTile("Levels beaten", `${T.beaten}<span style="font-size:15px;color:var(--mute)"> / ${T.levels}</span>`, `${tr} with any training`)}
       ${statTile("Runs live", T.running, `${T.runs} runs recorded`)}
       ${statTile("Env steps", fmtNum(T.steps), "across all runs")}
       ${statTile("Wall time", fmtDur(T.wall_s), "estimated from steps/s")}
-    </div>`;
+    </div>${watchPanel()}`;
   if (!lv.length) h += `<div class="empty" style="margin-top:20px"><b>No levels match these filters</b>Reset the filters to see the whole board.</div>`;
   for (const g of groups) {
     const items = lv.filter(l => l.group === g);
@@ -284,12 +318,14 @@ function openDrawer(key) {
   const best = Object.entries(l.best_by || {}).map(([k, v]) => `<tr><td>${esc(k)}</td><td class="num">${fmtPct(v)}</td></tr>`).join("");
   $("#drawer").innerHTML = `<button class="x" id="dx" aria-label="Close">&times;</button>
     <div class="hd" style="display:flex;gap:14px;align-items:center;--c:${t.color}">${face(l.difficulty)}<div><div class="dl" style="color:${t.color};font-size:11px;letter-spacing:.1em;text-transform:uppercase;font-weight:700">${t.label} &middot; ${esc(l.group)}</div><div style="font-size:22px;font-weight:800">${esc(l.name)}</div><span class="chip ${l.status}">${l.status}</span></div></div>
+    ${watchPanel(l.key)}
     <div class="kv" style="grid-template-columns:repeat(2,1fr);margin:16px 0"><div>best progress<b>${fmtPct(l.best_progress)}</b></div><div>attempts<b>${fmtNum(l.attempts)}</b></div><div>env steps<b>${fmtNum(l.steps)}</b></div><div>wall time<b>${fmtDur(l.wall_s)}</b></div></div>
     ${l.length ? `<div class="note">Level length ${fmtNum(l.length)} units</div>` : ""}
     <h2>Best progress by source</h2>${best ? `<table><tbody>${best}</tbody></table>` : '<div class="note">No data yet.</div>'}
     <h2>Beats</h2>${(l.beats || []).length ? (l.beats).map(b => `<div class="runcard" style="margin-bottom:8px"><b>${esc(b.agent || "?")}${b.partial ? " (any level in a range)" : ""}</b><span class="note">${esc(b.when || "")} &middot; attempts ${fmtNum(b.attempts)} &middot; generations ${fmtNum(b.generations)} &middot; wall ${b.wall_hours != null ? b.wall_hours + "h" : "-"}</span></div>`).join("") : '<div class="note">Not beaten yet.</div>'}
     <h2>Runs (${rs.length})</h2>${rs.map(r => `<div class="runcard" style="margin-bottom:8px"><div class="t">${esc(r.id)}</div><div style="display:flex;gap:6px;flex-wrap:wrap"><span class="chip ${r.status}">${r.status}</span><span class="chip">${esc(r.agent)}</span><span class="chip">${fmtNum(r.steps)} steps</span><span class="chip">best ${fmtPct(r.best_progress)}</span></div></div>`).join("") || '<div class="note">No runs.</div>'}
     <div style="display:flex;gap:8px;margin-top:16px;flex-wrap:wrap"><button class="btn" data-go="curves" data-run="${esc(rs[0]?.id || "")}">Curves</button><button class="btn" data-go="deaths" data-run="${esc(rs[0]?.id || "")}">Death map</button><button class="btn" data-go="ledger">Ledger</button></div>`;
+  $("#drawer").dataset.key = key;
   $("#drawer").classList.add("open");
 }
 function closeDrawer() { $("#drawer").classList.remove("open"); }
@@ -769,6 +805,8 @@ function postRender() { if (S.view === "deaths") drawHeat(); }
 /* ------------------------------------------------------------------ events */
 document.addEventListener("click", e => {
   const t = e.target;
+  const pb = t.closest("[data-play]"); if (pb) { const n = +($("#play-n")?.value || S.ui.playN || 1); S.ui.playN = n; saveUi(); return postWatch("/api/watch/start", { name: pb.dataset.play, attempts: n }); }
+  if (t.id === "play-stop") return postWatch("/api/watch/stop");
   const card = t.closest(".card[data-key]"); if (card) return openDrawer(card.dataset.key);
   if (t.id === "dx") return closeDrawer();
   const gb = t.closest("[data-go]"); if (gb) { const v = gb.dataset.go; const run = gb.dataset.run; closeDrawer(); if (run) { if (v === "curves") S.ui.sel = [run]; if (v === "deaths") S.ui.heatRun = run; } saveUi(); location.hash = "#" + v; if (S.view === v) render(); return; }
@@ -802,12 +840,15 @@ window.addEventListener("hashchange", () => { route(); lastHTML = ""; render(fal
 async function tick() {
   if (document.hidden) return;
   const changed = await loadState();
-  if (changed) { lastHTML = lastHTML; render(); } else renderLivebox();
+  const wch = await loadWatch();
+  if (wch && $("#drawer").classList.contains("open")) { const k = $("#drawer").dataset.key; if (k) openDrawer(k); }
+  if (changed || (wch && S.view === "overview")) { render(); } else renderLivebox();
 }
 (async function boot() {
   applyTheme(); route(); bindFilters();
   $("#nav").addEventListener("click", e => { const a = e.target.closest("a[data-v]"); if (a) { closeDrawer(); } });
   await loadState();
+  await loadWatch();
   if (!S.state) { $("#view").innerHTML = `<div class="empty"><b>Cannot reach the dashboard server</b>${esc(S.err || "")}</div>`; }
   else await render(false);
   if (!SNAP) setInterval(tick, 4000);

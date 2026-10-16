@@ -1,6 +1,6 @@
 # GD-RL dashboard
 
-Local, read-only training dashboard. No installs, no network: stdlib server plus a vanilla JS app (no libraries).
+Local training dashboard: read-only, except the Play buttons, which run `python -m gdrl.tools.watch` (a policy from `configs/watch.yaml`, played in GD at 1x; POST `/api/watch/start`, `/api/watch/stop`, status at `/api/watch`, output in `logs/watch.log`). Real-game levels only; `--mock` adds the mock levels, mock runs and the mock agent comparison. No installs, no network: stdlib server plus a vanilla JS app (no libraries).
 
 ```powershell
 $env:CUDA_VISIBLE_DEVICES = "-1"

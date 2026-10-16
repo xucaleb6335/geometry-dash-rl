@@ -105,6 +105,18 @@ def c_screenshot(a):
     return {"ok": True, **res}
 
 
+def c_unminimize(a):
+    from gdctl import win32
+
+    pids = game.game_pids()
+    if not pids:
+        raise GdctlError("not_running", "game is not running")
+    win = win32.main_window(pids[0], paths.WINDOW_TITLE)
+    if not win:
+        raise GdctlError("no_window", "game has no visible window")
+    return {"ok": True, "hwnd": win["hwnd"], "was_minimized": win32.unminimize(win["hwnd"])}
+
+
 def c_focus(a):
     from gdctl import win32
 
@@ -252,6 +264,10 @@ def c_prevent_pause(a):
     if a.persist:
         params["persist"] = True
     return proxy("prevent_pause", params)
+
+
+def c_mod_setting(a):
+    return proxy("set_mod_setting", {"mod": a.mod, "key": a.key, "value": a.value == "on"})
 
 
 def c_option(a):
@@ -466,6 +482,7 @@ def build_parser() -> argparse.ArgumentParser:
     sp.add_argument("--method", choices=["auto", "print", "screen"], default="auto",
                     help="host capture: screen (accurate, GD on top), print (PrintWindow, may be stale)")
     add("focus", c_focus, "bring the game window to the foreground")
+    add("unminimize", c_unminimize, "restore the game window if minimized, without taking focus")
     sp = add("input", c_input, "synthetic OS input (SendInput) fallback")
     isub = sp.add_subparsers(dest="action", required=True, parser_class=JsonArgumentParser)
     ic = isub.add_parser("click", help="left click in the client area")
@@ -545,6 +562,10 @@ def build_parser() -> argparse.ArgumentParser:
     sp = add("prevent-pause", c_prevent_pause, "get/set never-pause-on-focus-loss")
     sp.add_argument("state", nargs="?", choices=["on", "off"])
     sp.add_argument("--persist", action="store_true", help="also store it in the mod setting")
+    sp = add("mod-setting", c_mod_setting, "set a loaded mod's bool setting now (e.g. bridge watch-mode)")
+    sp.add_argument("key")
+    sp.add_argument("value", choices=["on", "off"])
+    sp.add_argument("--mod", default="xucaleb6335.gd-rl-bridge")
     sp = add("option", c_option, "get/set game options (show_percent, fps, 0040 ...)")
     sp.add_argument("action", choices=["get", "set"])
     sp.add_argument("key", nargs="?")
@@ -611,7 +632,7 @@ def build_parser() -> argparse.ArgumentParser:
 
 # Commands that never change the game; everything else checks the lock.
 READ_ONLY = {"status", "logs", "screenshot", "ping", "scene", "tree", "list-levels", "level-info",
-             "level-export", "search-levels", "wait-scene", "lock", "focus", "stop-training"}
+             "level-export", "search-levels", "wait-scene", "lock", "focus", "unminimize", "stop-training"}
 
 
 def run(argv: list[str] | None = None) -> tuple[int, dict[str, Any]]:

@@ -1,0 +1,54 @@
+# Bloodbath (extreme demon) with the StartPos objects of a community copy,
+# 'Bloodbath Start Pos' by KJQ (online id 77986175: the original plus 14
+# StartPos, checked offline and in game; configs/starts/bb_community.yaml).
+# Same setup as configs/gd_sm_community.yaml (which beat Stereo Madness);
+# initialised from the Stereo Madness policy.
+#
+#   powershell -ExecutionPolicy Bypass -File .\overnight.ps1 -Level saved:77986175 `
+#       -Config configs/gd_bb_community.yaml -RunFilter "*gd-bb-community*"
+name: gd-bb-community
+seed: 1
+env:
+  id: gd
+  backend: socket
+  host: 127.0.0.1
+  port: 5555
+  timeout: 30.0
+  level_ids: [0]
+  start_pos: -2            # plain resets (gdrl.evaluate) start at the real level start, not GD's StartPos
+  frame_skip: 4
+  max_steps: 20000
+  encoder: {name: object_list, k: 8, focus: obstacles, profile: true, position: true}   # position: hazard-typed decoration makes the object view unreliable on demons
+  reward: {name: progress}
+  curriculum:
+    starts: configs/starts/bb_community.yaml
+    p_first: 0.2           # share of episodes from the real level start
+    min_weight: 0.1        # starts the agent already passes still get some play
+    log_path: logs/bb_community_episodes.csv
+    explore_eps: 0.3       # random actions on starts passed < 5% of the time (policy was ~deterministic into the same spike)
+    snapshot_every: 300    # extra starts from saved game states every 300 units (StartPos are ~2,800 apart; 0% on all segments after 1M steps)
+    snapshot_retire_after: 150   # drop save points never passed in 150 tries (pre-UFO one was 0/570)
+    demos:                 # search solution through the UFO tunnel (logs/ufo_search.py): starts every 100 units on it
+      - {start_pos: 4, ticks: configs/demos/bb_ufo_from_sp4.npy, from_x: 10900, every: 100}
+    horizon_starts: 2      # mid-level episodes end 2 starts on: hard spots got ~1% of steps otherwise
+agent:
+  name: ppo
+  rollout_steps: 4096
+  num_minibatches: 8
+  update_epochs: 10
+  learning_rate: 2.5e-4
+  gamma: 0.99
+  gae_lambda: 0.95
+  ent_coef: 0.02          # 9 starts stuck at 0% with the same death spot for 300k+ steps at 0.01
+  hidden_sizes: [128, 128]  # one net for the whole level (cube and ship parts)
+  device: cuda            # updates on the GPU
+  act_device: cpu         # per-step actions on the CPU: act() on cuda was 1.8 ms/step, 2.5x the game's own step
+train:
+  num_envs: 1
+  total_steps: 60000000
+  checkpoint_every: 5     # updates (every 20,480 steps)
+  eval_every: 10          # updates: one greedy episode from the level start
+  eval_options: {start: 0}
+eval:
+  episodes: 20
+  sticky_prob: 0.1

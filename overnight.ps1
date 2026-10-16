@@ -34,8 +34,11 @@ param(
 $ErrorActionPreference = "Continue"
 Set-Location $PSScriptRoot
 $py = (Resolve-Path (Join-Path $PSScriptRoot "..\geometry-dash-rl\.venv\Scripts\python.exe")).Path
-# CPU only: the networks are tiny, and the GPU can fail to start a CUDA context.
-$env:CUDA_VISIBLE_DEVICES = "-1"
+# GPU (agent.device in the config). CUDA_MODULE_LOADING=LAZY is what made the
+# CUDA context start again on this laptop (2026-10-11); a config with
+# device: cpu still works. To hide the GPU: $env:CUDA_VISIBLE_DEVICES = "-1".
+$env:CUDA_MODULE_LOADING = "LAZY"
+Remove-Item Env:CUDA_VISIBLE_DEVICES -ErrorAction SilentlyContinue
 $env:GDCTL_OWNER = $Owner
 New-Item -ItemType Directory -Force logs | Out-Null
 $log = Join-Path $PSScriptRoot "logs\gd_overnight.log"
@@ -68,6 +71,10 @@ function GameHealthy {
 }
 
 Remove-Item $stopFile -ErrorAction SilentlyContinue
+# Keep Windows from sleeping while this runs (it did on 2026-10-12 at 22:15
+# and training stood still for 22 h). Released when the script exits.
+Add-Type -Namespace GdRl -Name Power -MemberDefinition '[DllImport("kernel32.dll")] public static extern uint SetThreadExecutionState(uint f);'
+[GdRl.Power]::SetThreadExecutionState([uint32]"0x80000001") | Out-Null   # ES_CONTINUOUS | ES_SYSTEM_REQUIRED
 Set-Content -Path $pidFile -Value $PID
 if ($StartDelay -gt 0) { Start-Sleep $StartDelay }
 
@@ -85,6 +92,11 @@ try {
     while ($failures -le $MaxRestarts -and -not $finished -and -not $stopped) {
         # 1. Game up, level open, bridge ready.
         # After a failure, reopen the level so the attempt starts clean.
+        # A downloaded online level (saved:<id>) loses its level data when GD
+        # restarts, so fetch it again first (cheap if it is still there).
+        if ($Level -like "saved:*") {
+            Gdctl @("download-level", $Level.Substring(6), "--no-song") | Out-Null
+        }
         $prepArgs = @("prepare-training", "--level", $Level)
         if ($failures -gt 0) { $prepArgs += "--reopen" }
         $prep = Gdctl $prepArgs
@@ -121,6 +133,9 @@ try {
                 $stopped = $true
                 break
             }
+            # A minimized GD stops running frames and the trainer times out;
+            # restore it behind other windows (no focus stealing).
+            & $py -m gdctl unminimize *> $null
             if (((Get-Date) - $lastRefresh).TotalMinutes -ge 30) {
                 Gdctl @("lock", "acquire") | Out-Null   # same owner = refresh
                 $lastRefresh = Get-Date

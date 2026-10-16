@@ -1117,6 +1117,24 @@ void cmdSetModEnabled(Json const& req, Reply reply) {
     reply(out);
 }
 
+// Set a bool setting of a loaded mod at runtime (e.g. the bridge's
+// watch-mode and legacy-view, which it reads every frame).
+void cmdSetModSetting(Json const& req, Reply reply) {
+    auto id = reqStr(req, "mod");
+    auto key = reqStr(req, "key");
+    auto value = optBool(req, "value");
+    if (!value) fail("bad_request", "missing parameter: value (bool)");
+    auto* mod = Loader::get()->getLoadedMod(id);
+    if (!mod) fail("not_found", "mod not loaded: " + id);
+    if (!mod->hasSetting(key)) fail("not_found", "no setting " + key + " in " + id);
+    mod->setSettingValue<bool>(key, *value);
+    Json out = okJson();
+    out["mod"] = id;
+    out["key"] = key;
+    out["value"] = mod->getSettingValue<bool>(key);
+    reply(out);
+}
+
 void cmdQuit(Json const& req, Reply reply) {
     bool save = optBool(req, "save").value_or(true);
     bool restart = optBool(req, "restart").value_or(false);
@@ -1430,6 +1448,7 @@ const std::map<std::string, Handler>& handlers() {
         {"create_level", cmdCreateLevel},
         {"delete_level", cmdDeleteLevel},
         {"set_mod_enabled", cmdSetModEnabled},
+        {"set_mod_setting", cmdSetModSetting},
         {"quit_game", cmdQuit},
         {"prevent_pause", cmdPreventPause},
         {"get_option", cmdGetOption},

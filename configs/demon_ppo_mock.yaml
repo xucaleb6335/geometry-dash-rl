@@ -1,0 +1,33 @@
+# Baseline: PPO from scratch on a demon-like mock level (compare with the checkpoint search).
+#   python -m gdrl.train --config configs/demon_ppo_mock.yaml
+name: demon-ppo-mock
+seed: 1
+env:
+  id: gd
+  backend: mock
+  level_ids: [1]
+  mock: {kind: demon, n_sections: 14, difficulty: 0.6}
+  frame_skip: 2
+  max_steps: 15000
+  encoder: {name: demon, k: 12}
+  reward: {name: progress, progress_scale: 1.0, death_penalty: -1.0, completion_bonus: 1.0}
+agent:
+  name: ppo
+  rollout_steps: 512
+  num_minibatches: 8
+  update_epochs: 4
+  learning_rate: 2.5e-4
+  gamma: 0.995
+  gae_lambda: 0.95
+  ent_coef: 0.01
+  hidden_sizes: [256, 256]
+  device: cpu
+train:
+  num_envs: 8
+  total_steps: 3000000
+  runs_dir: runs
+  checkpoint_every: 50
+  torch_threads: 2
+eval:
+  episodes: 1
+  sticky_prob: 0.0

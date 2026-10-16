@@ -1,4 +1,4 @@
-# GD-RL Bridge Protocol, version 1
+# GD-RL Bridge Protocol, versions 1 and 2
 
 This file is the contract between the Geode mod (C++, the server) and the Python
 environment (the client). Three things implement it and must stay in sync:
@@ -12,6 +12,15 @@ environment (the client). Three things implement it and must stay in sync:
 If you change a struct here, bump `PROTOCOL_VERSION` and update all three. The
 HELLO handshake rejects mismatched versions, so drift fails loudly instead of
 silently decoding garbage.
+
+**Version 2** (2026-10-11) adds snapshots (save and restore the whole game
+state), RESET from a Start Pos, a bigger STATE (player 2, hitbox size,
+floor/ceiling, 64 objects) and object subtypes and flags. Everything in
+version 1 is unchanged. A server speaks both and answers in the version the
+client's HELLO asked for; the Python client asks for 2 and, if the server
+replies `VERSION_MISMATCH`, reconnects and speaks 1. Status: the Python client
+and the mock server speak 2; the mod's v2 code is the patch in
+`logs/mod-patch/` (DEMON_PLAN.md), applied once it is tested in game.
 
 ## Transport
 
@@ -30,7 +39,7 @@ Every message is a 12-byte header followed by `length` payload bytes.
 | Offset | Type | Field | Value |
 | --- | --- | --- | --- |
 | 0 | u32 | magic | `0x4C524447` (the bytes `G D R L`) |
-| 4 | u16 | version | `1` |
+| 4 | u16 | version | the agreed version (`1` or `2`; the HELLO carries the version asked for) |
 | 6 | u16 | type | see message types |
 | 8 | u32 | length | payload size in bytes |
 
@@ -49,6 +58,12 @@ raise (client) and close the connection.
 | 5 | STATE | server → client | 676 |
 | 6 | ERROR | server → client | 68 |
 | 7 | BYE | client → server | 0 |
+| 8 | SAVE_STATE (v2) | client → server | 8 |
+| 9 | LOAD_STATE (v2) | client → server | 8 |
+| 10 | DROP_STATE (v2) | client → server | 8 |
+
+In version 2, STATE is 1344 bytes (STATE v2 below). A receiver validates
+sizes against the version in the frame header.
 
 ### HELLO (client → server)
 
@@ -65,15 +80,15 @@ Reply: `HELLO_ACK`, or `ERROR(VERSION_MISMATCH)` followed by closing the socket.
 | --- | --- | --- |
 | 0 | u16 | protocol_version |
 | 2 | u16 | tick_rate (physics ticks per second, 240 by default) |
-| 4 | u16 | max_objects (length of the STATE object array, 32) |
-| 6 | u16 | reserved |
+| 4 | u16 | max_objects (length of the STATE object array: 32 in v1, 64 in v2) |
+| 6 | u16 | v1: reserved (0). v2: max_snapshots (snapshot slots are `0 .. max_snapshots - 1`; 0 = none) |
 
 ### RESET (client → server)
 
 | Offset | Type | Field |
 | --- | --- | --- |
 | 0 | i32 | level_id. `0` = restart the currently loaded level. Other values are reserved for loading local levels by ID (curriculum, M7+). |
-| 4 | i32 | start_pos. `-1` = level start. `k >= 0` = start from the k-th Start Pos object, ordered by x. |
+| 4 | i32 | start_pos. `-1` = where the game itself starts this level (the level start, or the level's active Start Pos if it has one: v1 behaviour). `-2` = the real level start, ignoring Start Pos objects (v2). `k >= 0` = start from the k-th Start Pos object, ordered by x (v2; a v1 mod replies UNSUPPORTED). A Start Pos does not replay what came before it (triggers, moving objects), so for exact mid-level starts use snapshots. |
 
 Reply: `STATE` with `tick = 0`. The respawn delay and any end screen are skipped.
 
@@ -94,7 +109,31 @@ physics ticks at a fixed `1 / tick_rate` seconds each, then replies `STATE`.
 - After a terminal state (DEAD or COMPLETED), further STEPs return the same
   terminal STATE unchanged. The client must send RESET.
 
-### STATE (server → client), 676 bytes
+### SAVE_STATE, LOAD_STATE, DROP_STATE (client → server, v2)
+
+| Offset | Type | Field |
+| --- | --- | --- |
+| 0 | i32 | slot (`0 .. max_snapshots - 1`) |
+| 4 | u32 | reserved |
+
+- `SAVE_STATE` stores the complete game state in `slot` (overwriting it): in
+  the mod, GD's practice checkpoint (`PlayLayer::createCheckpoint`: game
+  state, triggers, object states) plus player fields the checkpoint does not
+  keep, the tick counter and the button state. Reply: `STATE` (unchanged).
+  Saving a terminal state is an error (`UNSUPPORTED`).
+- `LOAD_STATE` restores it. Reply: `STATE` of the restored state, whose
+  `tick` is the tick it had when saved. The button is in the state it was in
+  when saved, without a press or release event, so continuing with the same
+  STEPs reproduces the same states as a continuous run. Empty or
+  out-of-range slot: `ERROR(NO_SNAPSHOT)`.
+- `DROP_STATE` frees the slot. Reply: `STATE` (unchanged).
+- Leaving the level clears every slot.
+
+The determinism requirement extends to snapshots: SAVE at tick t, a sequence
+of STEPs, LOAD, the same STEPs must give byte-identical STATEs, equal to the
+ones a run from RESET gives (checked by `python -m gdrl.tools.snapshot_check`).
+
+### STATE (server → client), 676 bytes (v1)
 
 | Offset | Type | Field | Notes |
 | --- | --- | --- | --- |
@@ -115,11 +154,13 @@ Flags:
 
 | Bit | Name | Meaning |
 | --- | --- | --- |
-| 0 | DEAD | player 1 died this episode (terminal) |
+| 0 | DEAD | player 1 (or player 2 in dual mode) died this episode (terminal) |
 | 1 | COMPLETED | level completed (terminal) |
 | 2 | ON_GROUND | standing on the ground or on top of a solid |
 | 3 | UPSIDE_DOWN | gravity flipped |
 | 4 | HOLDING | the jump button is currently held |
+| 5 | MINI | (v2) player 1 is mini |
+| 6 | DUAL | (v2) dual mode; the player 2 fields are valid |
 
 Object (20 bytes):
 
@@ -130,7 +171,9 @@ Object (20 bytes):
 | 8 | f32 | w (hitbox width) |
 | 12 | f32 | h (hitbox height) |
 | 16 | u8 | kind |
-| 17 | u8[3] | reserved |
+| 17 | u8 | subtype (v2; 0 in v1), below |
+| 18 | u8 | object flags (v2; 0 in v1): bit 0 MOVED (not at its spawn position), bit 1 ACTIVATED (orb/pad/portal used this attempt), bit 2 HIDDEN (invisible but collides) |
+| 19 | u8 | reserved |
 
 Which objects are sent: those whose hitbox right edge is at or past the
 player's left edge minus one block (so the object being passed is still
@@ -152,6 +195,32 @@ Object kinds:
 Player modes: 0 cube, 1 ship, 2 ball, 3 ufo, 4 wave, 5 robot, 6 spider, 7 swing.
 Version 1 of the agent only handles cube.
 
+Object subtypes (v2): 0 unknown, 1 block, 2 slope, 3 spike, 4 saw;
+orbs 10 yellow, 11 pink, 12 gravity (blue), 13 green, 14 drop (black), 15 red,
+16 dash, 17 gravity dash, 18 spider, 19 teleport, 20 custom; pads 30 yellow,
+31 pink, 32 gravity, 33 red, 34 spider; portals 40 cube, 41 ship, 42 ball,
+43 ufo, 44 wave, 45 robot, 46 spider, 47 swing, 50 gravity down, 51 gravity up,
+52 gravity toggle, 53 mini, 54 normal size, 55 dual, 56 solo, 57 mirror,
+58 mirror off, 59 teleport; speed portals (kind PORTAL) 60 slow, 61 normal,
+62 2x, 63 3x, 64 4x. In v2 speed portals are sent (v1 dropped them).
+
+### STATE v2 (server → client), 1344 bytes
+
+Offsets 0 to 35 are as in v1. Then:
+
+| Offset | Type | Field | Notes |
+| --- | --- | --- | --- |
+| 36 | f32 | player_size | side of player 1's hitbox (smaller when mini) |
+| 40 | f32 | floor_y | lowest y the player can stand on here; NaN = not reported |
+| 44 | f32 | ceil_y | roof of a ship/ball/wave corridor; NaN = not reported |
+| 48 | f32 | p2_x | player 2 (valid when DUAL) |
+| 52 | f32 | p2_y | |
+| 56 | f32 | p2_vel_y | |
+| 60 | u8 | p2_mode | |
+| 61 | u8 | p2_flags | StateFlag bits DEAD, ON_GROUND, UPSIDE_DOWN, MINI |
+| 62 | u16 | reserved | |
+| 64 | Object[64] | objects | as in v1, 64 entries |
+
 ### ERROR (server → client)
 
 | Offset | Type | Field |
@@ -166,6 +235,7 @@ Version 1 of the agent only handles cube.
 | 2 | BAD_MESSAGE | bad magic, unknown type, wrong payload length, message out of order |
 | 3 | NOT_IN_LEVEL | RESET or STEP while no level is open |
 | 4 | UNSUPPORTED | a valid request the server does not implement yet (e.g. level_id != 0) |
+| 5 | NO_SNAPSHOT | (v2) LOAD_STATE of an empty slot, or a slot out of range |
 
 ### BYE (client → server)
 

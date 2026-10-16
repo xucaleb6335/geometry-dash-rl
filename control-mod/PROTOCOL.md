@@ -69,6 +69,7 @@ Error codes: `bad_json`, `bad_request`, `unknown_command`, `timeout`,
 | `get_level_string` | any level selector (as `open_level`) | `level`, `level_string` (as stored, usually gzip+base64) |
 | `set_level_string` | local selector, `level_string` (raw or compressed), `prefix` (`gdrl-`), `force`, `save` | `level` |
 | `set_mod_enabled` | `mod`, `enabled` | `enabled`, `loaded`, `restart_required` |
+| `set_mod_setting` | `mod`, `key`, `value` (bool) | `mod`, `key`, `value`. Runtime change of a loaded mod's bool setting (saved on exit) |
 | `quit_game` | `save` (true), `restart` (false) | replies, then exits (Geode's `utils::game::exit`) 5 frames later |
 | `prevent_pause` | `enabled`, `persist` | `prevent_pause`, `setting`. Runtime value resets to the mod setting on restart unless `persist` |
 | `get_option` | `key` (alias or 4-digit GameManager variable) | `value`, `options` (aliases, `fps_target`, `fps_now`, `vsync`), `aliases` |

@@ -10,6 +10,8 @@ venv/
 runs/
 logs/
 *.pt
+# the policies gdrl.tools.watch plays (configs/watch.yaml), ~1 MB each
+!results/watch/*.pt
 
 # C++ builds
 build/

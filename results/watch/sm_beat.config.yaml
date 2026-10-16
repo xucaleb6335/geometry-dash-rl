@@ -1,0 +1,56 @@
+name: gd-sm-community
+seed: 1
+env:
+  id: gd
+  backend: socket
+  level_ids:
+  - 0
+  frame_skip: 4
+  max_steps: 15000
+  encoder:
+    name: object_list
+    k: 8
+    focus: obstacles
+    profile: true
+  reward:
+    name: progress
+  host: 127.0.0.1
+  port: 5555
+  timeout: 30.0
+  start_pos: -2
+  curriculum:
+    starts: configs/starts/sm_community.yaml
+    p_first: 0.2
+    min_weight: 0.1
+    log_path: logs/sm_community_episodes.csv
+    explore_eps: 0.3
+    horizon_starts: 2
+agent:
+  name: ppo
+  rollout_steps: 4096
+  num_minibatches: 8
+  update_epochs: 10
+  learning_rate: 0.00025
+  gamma: 0.99
+  gae_lambda: 0.95
+  ent_coef: 0.02
+  hidden_sizes:
+  - 128
+  - 128
+  device: cuda
+  act_device: cpu
+train:
+  num_envs: 1
+  total_steps: 30000000
+  checkpoint_every: 5
+  runs_dir: runs
+  tensorboard: true
+  torch_threads: 1
+  eval_every: 10
+  eval_options:
+    start: 0
+  resume: null
+eval:
+  episodes: 20
+  sticky_prob: 0.1
+  level_ids: null

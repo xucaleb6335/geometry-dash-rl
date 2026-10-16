@@ -209,3 +209,5 @@ M3 and M6 pass their gates.
   and drive GD; `overnight.ps1` recovers from GD crashes. CUDA fixed with the
   user env var CUDA_MODULE_LOADING=LAZY. Level beats are logged in
   `holistic_progress/` (`python -m gdrl.tools.record_beat`).
+- 2026-10-12 (autopilot): bridge v2 installed; community StartPos copy (SM Start Pos, 141625101) curriculum via RESET start_pos; fixed StartPos respawn (cached checkpoint) and completion detection under lockstep; training on GPU (`configs/gd_sm_community.yaml`).
+- 2026-10-12 (autopilot): **Stereo Madness beaten** by the greedy PPO policy on the original level (3/3; 5/10 with sticky 0.1), checkpoint `results/sm_beat_update_001170.pt`, after 4.8M steps / 2.4 h on the community StartPos curriculum (encoder focus=obstacles + terrain profile, CPU acting, horizon 2, stuck-start exploration).

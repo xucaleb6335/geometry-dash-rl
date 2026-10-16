@@ -1,0 +1,24 @@
+# Policies that `python -m gdrl.tools.watch <name>` (and the dashboard's Play
+# buttons) can play in game at 1x. Add an entry to make a new one playable.
+#   level:       what gdctl opens (main:<n>, saved:<online id>, local:<name>)
+#   config:      the training config of the policy (encoder + network)
+#   checkpoint:  the policy weights
+#   legacy_view: bridge object view from before 2026-10-13 (block merging off);
+#                the Stereo Madness policy was trained on it and fails without it
+#   start_pos:   -2 = the real level start
+sm:
+  name: Stereo Madness (beaten)
+  dashboard_level: main:1
+  level: main:1
+  config: results/watch/sm_beat.config.yaml
+  checkpoint: results/watch/sm_beat.pt
+  legacy_view: true
+  start_pos: -2
+bb:
+  name: Bloodbath (30%)
+  dashboard_level: gd:10565740
+  level: saved:77986175            # 'Bloodbath Start Pos' (KJQ): the original object for object
+  config: results/watch/bb_30pct.config.yaml
+  checkpoint: results/watch/bb_30pct.pt
+  legacy_view: false
+  start_pos: -2

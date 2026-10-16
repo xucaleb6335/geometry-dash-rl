@@ -2,7 +2,10 @@
   "_note": "Difficulty metadata for the level board. difficulty is one of: mock, mock_heldout, mock_demon, easy, normal, hard, harder, insane, easy_demon, medium_demon, hard_demon, insane_demon, extreme_demon. Edit freely; unknown levels are added to the board automatically. 'aliases' are matched (case-insensitive) against run meta.level, ledger level names and level ids. 'main' difficulties are approximate.",
   "run_level_overrides": {
     "gd-overnight": "main:1",
-    "gd-curriculum-sm": "main:1"
+    "gd-curriculum-sm": "main:1",
+    "gd-frontier-sm": "main:1",
+    "gd-sm-community": "main:1",
+    "gd-bb-community": "gd:10565740"
   },
   "groups": ["Mock", "Mock demons", "Main levels", "Extreme demons", "Pointercrate top 10"],
   "levels": [

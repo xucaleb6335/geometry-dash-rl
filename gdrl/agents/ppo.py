@@ -44,7 +44,12 @@ class PPOConfig:
     max_grad_norm: float = 0.5
     target_kl: float | None = None
     hidden_sizes: tuple[int, ...] = (64, 64)
-    device: str = "auto"  # "auto" picks cuda when available, else cpu
+    device: str = "auto"  # "auto" picks cuda when available, else cpu (training updates)
+    # Device for act() (one observation per env step). Copies of the networks
+    # live there and are refreshed after each update. "cpu" with device cuda
+    # keeps the updates on the GPU but avoids a GPU round trip per game step
+    # (measured on the real game: act() took 1.8 ms/step on cuda, the env 0.7).
+    act_device: str | None = None  # None = same as device
     total_updates: int = 1  # set by train.py; used for learning-rate annealing
 
 
@@ -107,6 +112,18 @@ class PPOAgent(Agent):
         self.policy = self._build_net(self.n_actions, out_std=0.01).to(self.device)
         self.value = self._build_net(1, out_std=1.0).to(self.device)
         self.optimizer = torch.optim.Adam(self._parameters(), lr=cfg.learning_rate, eps=cfg.adam_eps)
+        self.act_device = torch.device(cfg.act_device) if cfg.act_device else self.device
+        self._sync_actor()
+
+    def _sync_actor(self) -> None:
+        """Point act() at the networks, or at fresh copies on act_device."""
+        if self.act_device == self.device:
+            self._act_policy, self._act_value = self.policy, self.value
+            return
+        import copy
+
+        self._act_policy = copy.deepcopy(self.policy).to(self.act_device).eval()
+        self._act_value = copy.deepcopy(self.value).to(self.act_device).eval()
 
     def _parameters(self) -> list[nn.Parameter]:
         return [*self.policy.parameters(), *self.value.parameters()]
@@ -130,11 +147,14 @@ class PPOAgent(Agent):
 
     def act(self, obs: np.ndarray, deterministic: bool = False) -> ActOutput:
         with torch.no_grad():
-            x = self._tensor(obs)
-            dist = Categorical(logits=self.policy(x))
-            action = torch.argmax(dist.logits, dim=-1) if deterministic else dist.sample()
-            logprob = dist.log_prob(action)
-            value = self._values(x)
+            x = torch.as_tensor(np.asarray(obs), dtype=torch.float32, device=self.act_device)
+            logp_all = torch.log_softmax(self._act_policy(x), dim=-1)
+            if deterministic:
+                action = torch.argmax(logp_all, dim=-1)
+            else:
+                action = torch.multinomial(logp_all.exp(), 1).squeeze(-1)
+            logprob = logp_all.gather(-1, action[:, None]).squeeze(-1)
+            value = self._act_value(x).squeeze(-1)
         return ActOutput(
             action=action.cpu().numpy().astype(np.int64),
             extras={
@@ -245,6 +265,7 @@ class PPOAgent(Agent):
         var_y = float(np.var(y_true))
         explained_var = 0.0 if var_y == 0 else 1.0 - float(np.var(y_true - y_pred)) / var_y
         self.num_updates_done += 1
+        self._sync_actor()
         metrics = {k: float(np.mean(v)) for k, v in stats.items()}
         metrics.update(explained_variance=explained_var, learning_rate=lr, value_mean=float(old_values.mean()))
         return metrics
@@ -268,3 +289,4 @@ class PPOAgent(Agent):
         self.value.load_state_dict(ckpt["value"])
         self.optimizer.load_state_dict(ckpt["optimizer"])
         self.num_updates_done = ckpt.get("num_updates_done", 0)
+        self._sync_actor()

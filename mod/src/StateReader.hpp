@@ -24,6 +24,6 @@ namespace gdrl {
 // obstacles; GameObject::getObjectRect for hitboxes; GameObject::m_objectType
 // to classify solid vs hazard vs orb. Confirm every field name in the headers
 // under $GEODE_SDK/bindings for GD 2.2081 before trusting it.
-void readState(PlayLayer* layer, proto::State& out);
+void readState(PlayLayer* layer, proto::StateV2& out);
 
 }  // namespace gdrl

@@ -227,6 +227,23 @@ def focus(hwnd: int) -> bool:
     return int(user32.GetForegroundWindow() or 0) == int(hwnd)
 
 
+def unminimize(hwnd: int) -> bool:
+    """Restore a minimized window without activating it (no focus stealing).
+
+    A minimized GD stops running its frames, so the bridge stops answering.
+    Returns True if the window was minimized."""
+    SW_SHOWNOACTIVATE = 4
+    if not user32.IsIconic(hwnd):
+        return False
+    user32.ShowWindow(hwnd, SW_SHOWNOACTIVATE)
+    # Behind every other window, so it keeps running without covering what
+    # the person is doing.
+    HWND_BOTTOM, SWP_NOSIZE, SWP_NOMOVE, SWP_NOACTIVATE = 1, 0x1, 0x2, 0x10
+    user32.SetWindowPos(wintypes.HWND(hwnd), wintypes.HWND(HWND_BOTTOM), 0, 0, 0, 0,
+                        SWP_NOSIZE | SWP_NOMOVE | SWP_NOACTIVATE)
+    return True
+
+
 def close_window(hwnd: int) -> None:
     WM_CLOSE = 0x10
     user32.PostMessageW(hwnd, WM_CLOSE, 0, 0)

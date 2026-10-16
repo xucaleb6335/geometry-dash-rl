@@ -5,7 +5,7 @@
 	},
 	"id": "xucaleb6335.gd-rl-bridge",
 	"name": "GD-RL Bridge",
-	"version": "v0.1.0",
+	"version": "v0.2.0",
 	"developer": "xucaleb6335",
 	"description": "Exposes Geometry Dash as a lockstep reinforcement-learning environment over localhost TCP.",
 	"settings": {
@@ -16,6 +16,26 @@
 			"default": 5555,
 			"min": 1024,
 			"max": 65535
+		},
+		"snapshot-load": {
+			"name": "Snapshot load method",
+			"description": "How LOAD_STATE restores a snapshot: 0 = practice-mode respawn at the saved checkpoint, 1 = reset then loadFromCheckpoint. For debugging.",
+			"type": "int",
+			"default": 0,
+			"min": 0,
+			"max": 1
+		},
+		"legacy-view": {
+			"name": "Legacy object view",
+			"description": "Send objects the way the bridge did before 2026-10-13 (no block merging, no No-Touch/speed-portal handling, +-20 blocks vertically). For replaying policies trained then (Stereo Madness).",
+			"type": "bool",
+			"default": false
+		},
+		"watch-mode": {
+			"name": "Watch mode",
+			"description": "Under an agent, serve at most one STEP per rendered frame, for watching a client that paces its STEPs in real time. Leave off for training (it caps the step rate at the frame rate).",
+			"type": "bool",
+			"default": false
 		}
 	}
 }

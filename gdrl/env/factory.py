@@ -9,6 +9,7 @@ from gymnasium.vector import AutoresetMode, SyncVectorEnv
 
 from gdrl.env.backends import MockBackend, SocketBackend
 from gdrl.env.gd_env import GDEnv
+import gdrl.features.demon_encoder  # noqa: F401  (registers the "demon" encoder)
 from gdrl.features.encoder import make_encoder
 from gdrl.rewards.reward import make_reward
 
@@ -36,7 +37,7 @@ def make_env(env_cfg: dict[str, Any]) -> gym.Env:
 
     encoder_cfg = dict(env_cfg.get("encoder", {"name": "debug"}))
     reward_cfg = dict(env_cfg.get("reward", {"name": "constant"}))
-    return GDEnv(
+    env = GDEnv(
         backend,
         make_encoder(encoder_cfg.pop("name"), **encoder_cfg),
         make_reward(reward_cfg.pop("name"), **reward_cfg),
@@ -45,6 +46,10 @@ def make_env(env_cfg: dict[str, Any]) -> gym.Env:
         level_ids=env_cfg.get("level_ids"),
         start_pos=int(env_cfg.get("start_pos", -1)),
     )
+    # Optional start-position curriculum (gdrl/curriculum.py).
+    from gdrl.curriculum import wrap_curriculum
+
+    return wrap_curriculum(env, env_cfg.get("curriculum"))
 
 
 def make_vector_env(env_cfg: dict[str, Any], num_envs: int) -> SyncVectorEnv:

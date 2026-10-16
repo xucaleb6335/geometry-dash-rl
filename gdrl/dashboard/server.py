@@ -5,6 +5,8 @@ from __future__ import annotations
 import gzip
 import json
 import mimetypes
+import subprocess
+import sys
 import threading
 import time
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
@@ -16,7 +18,76 @@ from .aggregate import Store, clean
 STATIC = Path(__file__).resolve().parent / "static"
 
 
-def make_handler(store: Store):
+class Watcher:
+    """Runs `python -m gdrl.tools.watch <name>` (play a policy in GD at 1x) as
+    one background job at a time; its output goes to logs/watch.log."""
+
+    def __init__(self, root: Path):
+        self.root = Path(root)
+        self.presets_path = self.root / "configs" / "watch.yaml"
+        self.log_path = self.root / "logs" / "watch.log"
+        self.proc: subprocess.Popen | None = None
+        self.job: dict | None = None
+        self.lock = threading.Lock()
+
+    def presets(self) -> list[dict]:
+        try:
+            import yaml
+            data = yaml.safe_load(self.presets_path.read_text(encoding="utf-8")) or {}
+        except (OSError, ValueError):
+            return []
+        return [{"id": k, "name": v.get("name", k), "level": v.get("dashboard_level")} for k, v in data.items()]
+
+    def status(self) -> dict:
+        with self.lock:
+            running = self.proc is not None and self.proc.poll() is None
+            if self.job is not None and not running and self.job.get("exit") is None and self.proc is not None:
+                self.job["exit"] = self.proc.returncode
+                self.job["ended"] = time.time()
+            try:
+                tail = self.log_path.read_text(encoding="utf-8", errors="replace").splitlines()[-12:]
+            except OSError:
+                tail = []
+            return {"presets": self.presets(), "running": running, "job": self.job, "log": tail}
+
+    def start(self, name: str, attempts: int) -> dict:
+        with self.lock:
+            if self.proc is not None and self.proc.poll() is None:
+                return {"ok": False, "error": "a policy is already playing"}
+            if name not in {p["id"] for p in self.presets()}:
+                return {"ok": False, "error": f"unknown policy {name}"}
+            attempts = max(1, min(int(attempts), 50))
+            self.log_path.parent.mkdir(parents=True, exist_ok=True)
+            log = open(self.log_path, "w", encoding="utf-8")
+            self.proc = subprocess.Popen(
+                [sys.executable, "-u", "-m", "gdrl.tools.watch", name, "--attempts", str(attempts)],
+                cwd=self.root, stdout=log, stderr=subprocess.STDOUT)
+            log.close()
+            self.job = {"name": name, "attempts": attempts, "started": time.time(), "exit": None}
+            return {"ok": True}
+
+    def stop(self) -> dict:
+        with self.lock:
+            if self.proc is None or self.proc.poll() is not None:
+                return {"ok": False, "error": "nothing is playing"}
+            self.proc.terminate()
+            try:
+                self.proc.wait(10)
+            except subprocess.TimeoutExpired:
+                self.proc.kill()
+        # The killed job could not clean up: bridge settings back to training
+        # defaults and release its game lock.
+        env_py = [sys.executable, "-m", "gdctl"]
+        for key in ("watch-mode", "legacy-view"):
+            subprocess.run(env_py + ["--owner", "watch", "mod-setting", key, "off"], cwd=self.root,
+                           capture_output=True, timeout=60)
+        subprocess.run(env_py + ["--owner", "watch", "lock", "release"], cwd=self.root, capture_output=True, timeout=60)
+        return {"ok": True}
+
+
+def make_handler(store: Store, watcher: Watcher | None = None):
+    watcher = watcher or Watcher(store.root)
+
     class Handler(BaseHTTPRequestHandler):
         server_version = "gdrl-dashboard"
 
@@ -62,6 +133,8 @@ def make_handler(store: Store):
                         self._json({"error": "unknown run"}, 404)
                     else:
                         self._json(d)
+                elif u.path == "/api/watch":
+                    self._json(watcher.status())
                 elif u.path.startswith("/static/"):
                     p = (STATIC / u.path[len("/static/"):]).resolve()
                     if STATIC in p.parents and p.is_file():
@@ -74,6 +147,25 @@ def make_handler(store: Store):
                 import traceback
                 traceback.print_exc()
                 self._json({"error": str(e)}, 500)
+
+        def do_POST(self):  # noqa: N802
+            u = urlparse(self.path)
+            # Only same-origin page requests (the app sends this header).
+            if self.headers.get("X-GDRL") != "1":
+                return self._json({"ok": False, "error": "forbidden"}, 403)
+            try:
+                n = int(self.headers.get("Content-Length") or 0)
+                body = json.loads(self.rfile.read(n) or b"{}") if n else {}
+                if u.path == "/api/watch/start":
+                    self._json(watcher.start(str(body.get("name", "")), int(body.get("attempts", 1))))
+                elif u.path == "/api/watch/stop":
+                    self._json(watcher.stop())
+                else:
+                    self._send(404, b"not found", "text/plain")
+            except Exception as e:
+                import traceback
+                traceback.print_exc()
+                self._json({"ok": False, "error": str(e)}, 500)
 
     return Handler
 

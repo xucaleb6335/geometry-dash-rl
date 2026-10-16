@@ -1,0 +1,55 @@
+# Real game with a start-position curriculum (gdrl/curriculum.py).
+#
+# Episodes start from the level start or from local copies of the level that
+# carry one StartPos each (built and checked in game by gdrl.tools.make_starts;
+# the list is in env.curriculum.starts). Why: plain training from the level
+# start (configs/gd_overnight.yaml) plateaued on Stereo Madness at 19.4%: the
+# policy collapsed to one deterministic line and never explored the ~40
+# releases in a row the next part needs.
+#
+#   powershell -ExecutionPolicy Bypass -File .\overnight.ps1 -Level main:1 `
+#       -Config configs/gd_curriculum.yaml -RunFilter "*gd-frontier-sm*"
+#
+# The level opened by prepare-training only matters for the first episodes;
+# the wrapper opens whichever start it picks. eval/* in TensorBoard is one
+# greedy run from the real level start every eval_every updates.
+name: gd-frontier-sm
+seed: 1
+env:
+  id: gd
+  backend: socket
+  host: 127.0.0.1
+  port: 5555
+  timeout: 30.0
+  level_ids: [0]
+  frame_skip: 4
+  max_steps: 15000
+  encoder: {name: object_list, k: 8}
+  reward: {name: progress}
+  curriculum:
+    starts: configs/starts/sm.yaml
+    p_first: 0.5           # share of choices that go to the real level start
+    frontier_extra: 1      # open starts only up to the first unsolved one past the level-start reach, +1
+    min_weight: 0.1        # starts the agent already passes still get some play
+    switch_steps: 2048     # stay on a start at least this many steps (a switch costs ~2.3 s)
+    log_path: logs/frontier_sm_episodes.csv
+agent:
+  name: ppo
+  rollout_steps: 4096     # > switch_steps, so each update mixes at least two starts
+  num_minibatches: 8
+  update_epochs: 10      # 4 left per-update KL at ~0.002 (clipfrac ~0): too little learning per sample on a ~260 steps/s game
+  learning_rate: 2.5e-4
+  gamma: 0.99
+  gae_lambda: 0.95
+  ent_coef: 0.01
+  hidden_sizes: [64, 64]
+  device: cpu
+train:
+  num_envs: 1
+  total_steps: 30000000
+  checkpoint_every: 5     # updates (every 20,480 steps)
+  eval_every: 20          # updates: one greedy episode from the level start
+  eval_options: {start: 0}
+eval:
+  episodes: 20
+  sticky_prob: 0.1

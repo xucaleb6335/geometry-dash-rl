@@ -284,6 +284,13 @@ class Cached:
 
 # --------------------------------------------------------------------------- catalog
 
+MOCK_GROUPS = ("Mock", "Mock demons")
+
+
+def is_mock_key(key: str) -> bool:
+    return key.startswith(("mock:", "mock-demon:", "other:"))
+
+
 class Catalog:
     def __init__(self, path: Path | None = None):
         data = read_json(path or PKG / "levels_catalog.json") or {}
@@ -329,11 +336,14 @@ class Catalog:
 
 class Store:
     def __init__(self, root: Path, runs_dir: Path | None = None, demo: bool = False,
-                 extra_runs: list[Path] | None = None):
+                 extra_runs: list[Path] | None = None, include_mock: bool = True):
         self.root = Path(root)
         self.runs_dir = Path(runs_dir) if runs_dir else self.root / "runs"
         self.demo = demo
         self.demo_dir = PKG / "demo"
+        # include_mock=False: only real-game levels (mock levels, mock runs,
+        # CartPole and the mock agent comparison are left out).
+        self.include_mock = include_mock
         self.catalog = Catalog()
         self.lock = threading.RLock()
         self.metrics: dict[Path, MetricsFile] = {}
@@ -881,6 +891,8 @@ class Store:
             if self._state is not None and sig == self._state_sig:
                 return self._state
             runs = self.runs()
+            if not self.include_mock:
+                runs = [r for r in runs if not all(is_mock_key(k) for k in r["levels"]) and r.get("backend") != "mock"]
             self._runs_ctx = runs
             for r in runs:
                 if r["has"].get("curriculum"):
@@ -893,6 +905,9 @@ class Store:
                     r["episodes"] = len(rows) or r["episodes"]
             ledger = self.ledger()
             compare = self.compare()
+            if not self.include_mock:
+                ledger = [b for b in ledger if (b.get("game") or "") != "mock"]
+                compare = {**compare, "rows": []}
             board = self._board(runs, ledger, compare)
             for r in runs:  # attach curriculum availability
                 r["has"]["curriculum_rows"] = False
@@ -900,7 +915,8 @@ class Store:
             st = {
                 "version": version, "generated": time.time(), "demo": self.demo,
                 "runs": runs, "ledger": ledger, "compare": compare,
-                "levels": board["levels"], "groups": self.catalog.groups,
+                "levels": board["levels"],
+                "groups": [g for g in self.catalog.groups if self.include_mock or g not in MOCK_GROUPS],
                 "feed": self._feed(runs), "totals": board["totals"],
             }
             self._state = clean(st)
@@ -974,10 +990,14 @@ class Store:
                                                       "wall_hours", "run")} | {"partial": False})
                 s["best"]["ledger"] = 1.0
                 notes = (b.get("notes") or "").lower()
-                if "robust" in notes or "sticky" in notes and "complet" in notes:
+                # Only an explicit "robust" (sticky completion >= 0.8, per the README);
+                # "5/10 with sticky actions" is a plain beat.
+                if "robust" in notes and "not robust" not in notes:
                     s["robust"] = True
         levels = []
         for lv in cat.levels:
+            if not self.include_mock and (lv.get("game") == "mock" or lv.get("group") in MOCK_GROUPS or is_mock_key(lv["key"])):
+                continue
             s = per.get(lv["key"])
             item = {**{k: lv.get(k) for k in ("key", "name", "group", "difficulty", "game", "gd_id", "length")}}
             if not s:

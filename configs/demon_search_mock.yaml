@@ -1,0 +1,22 @@
+# Checkpoint search on a long mixed-mode mock level (a stand-in for an extreme demon).
+#   python -m gdrl.tools.demon_search --config configs/demon_search_mock.yaml --level 1
+name: demon-search-mock
+seed: 0
+env:
+  id: gd
+  backend: mock
+  level_ids: [1]
+  mock: {kind: demon, n_sections: 14, difficulty: 0.6}
+search:
+  segment_ticks: 60        # 0.25 s per segment
+  decision_ticks: 2        # inputs every 2 ticks (120 per second)
+  fine_decision_ticks: 2   # retries at this grid; 1 = frame-perfect (keep 2 if the solution will be distilled at frame_skip 2)
+  beam_width: 12
+  candidates_per_node: 4
+  max_rounds: 8
+  lookahead_ticks: 150
+  max_backtrack: 8
+  verify_every: 0
+  time_limit_s: 3600
+train:
+  runs_dir: runs

@@ -1,0 +1,36 @@
+# Distill a checkpoint-search solution into a policy (BC + DAgger, search as expert).
+#   python -m gdrl.tools.demon_distill --config configs/demon_distill_mock.yaml --level 1 \
+#       --solution runs/<demon-search run>/solution.npz
+name: demon-distill-mock
+seed: 0
+env:
+  id: gd
+  backend: mock
+  level_ids: [1]
+  mock: {kind: demon, n_sections: 14, difficulty: 0.6}
+  frame_skip: 2            # = distill.decision_ticks = search.decision_ticks
+  max_steps: 15000
+  encoder: {name: demon, k: 12}
+  reward: {name: progress}
+distill:
+  decision_ticks: 2
+  hidden_sizes: [256, 256]
+  lr: 1.0e-3
+  epochs_per_round: 30
+  max_dagger_rounds: 80
+  snapshot_every: 15
+  back_decisions: 45
+  goal_ahead: 240.0
+search:                    # the expert's settings
+  segment_ticks: 60
+  decision_ticks: 2
+  beam_width: 12
+  max_rounds: 12
+  max_backtrack: 4
+  time_limit_s: 30
+  max_rollouts: 6000
+eval:
+  episodes: 1
+  sticky_prob: 0.0
+train:
+  runs_dir: runs

@@ -36,7 +36,7 @@ proto::State makeState(uint32_t tick, bool holding) {
     s.levelLength = 3000.0f;
     s.mode = static_cast<uint8_t>(proto::PlayerMode::Cube);
     s.numObjects = 1;
-    s.objects[0] = proto::ObjectInfo{600.0f, 9.0f, 9.0f, 18.0f, static_cast<uint8_t>(proto::ObjectKind::Hazard), {0, 0, 0}};
+    s.objects[0] = proto::ObjectInfo{600.0f, 9.0f, 9.0f, 18.0f, static_cast<uint8_t>(proto::ObjectKind::Hazard), 0, 0, 0};
     return s;
 }
 
@@ -64,7 +64,7 @@ int main(int argc, char** argv) {
         if (!msg) continue;
 
         if (auto* hello = std::get_if<proto::Hello>(&*msg)) {
-            if (hello->clientVersion != proto::kVersion) {
+            if (hello->clientVersion != 1) {  // a v1-only server: v2 clients fall back to 1
                 bridge.sendError(proto::ErrorCode::VersionMismatch, "protocol version mismatch");
                 bridge.dropClient();
                 continue;

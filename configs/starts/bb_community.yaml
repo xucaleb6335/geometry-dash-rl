@@ -1,0 +1,66 @@
+level: saved:77986175
+original: saved:10565740
+source: 'community copy ''Bloodbath Start Pos'' by KJQ (online id 77986175, 825k downloads);
+  offline diff vs the original 10565740: every object identical, plus 14 StartPos.
+  Spawns checked in game with RESET start_pos k, 2026-10-12.'
+starts:
+- name: start
+  start_pos: -2
+  x: 0.0
+  mode: 1
+- name: sp00
+  start_pos: 0
+  x: 1305.0
+  mode: 0
+- name: sp01
+  start_pos: 1
+  x: 2505.0
+  mode: 1
+- name: sp02
+  start_pos: 2
+  x: 3825.0
+  mode: 2
+- name: sp03
+  start_pos: 3
+  x: 6855.0
+  mode: 1
+- name: sp04
+  start_pos: 4
+  x: 9855.0
+  mode: 2
+- name: sp05
+  start_pos: 5
+  x: 13515.0
+  mode: 0
+- name: sp06
+  start_pos: 6
+  x: 16665.0
+  mode: 3
+- name: sp07
+  start_pos: 7
+  x: 21015.0
+  mode: 0
+- name: sp08
+  start_pos: 8
+  x: 23985.0
+  mode: 0
+- name: sp09
+  start_pos: 9
+  x: 27915.0
+  mode: 0
+- name: sp10
+  start_pos: 10
+  x: 31635.0
+  mode: 1
+- name: sp11
+  start_pos: 11
+  x: 33765.0
+  mode: 3
+- name: sp12
+  start_pos: 12
+  x: 36435.0
+  mode: 0
+- name: sp13
+  start_pos: 13
+  x: 38805.0
+  mode: 0

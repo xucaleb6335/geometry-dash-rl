@@ -74,7 +74,10 @@ class GDEnv(gym.Env):
             self._level_id = int(self.np_random.choice(self.level_ids))
         start_pos = int(options.get("start_pos", self.start_pos))
 
-        self._state = self.backend.reset(self._level_id, start_pos)
+        if "load_slot" in options:  # a saved snapshot as the start (protocol v2)
+            self._state = self.backend.load_state(int(options["load_slot"]))
+        else:
+            self._state = self.backend.reset(self._level_id, start_pos)
         self._steps = 0
         self.encoder.reset(self._state)
         self.reward_fn.reset(self._state)

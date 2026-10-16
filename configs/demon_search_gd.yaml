@@ -1,0 +1,30 @@
+# Checkpoint search on the real game (needs the protocol v2 mod: logs/mod-patch, DEMON_PLAN.md).
+# Open the level (normal mode, not practice), take the game lock, then:
+#   python -m gdrl.tools.demon_search --config configs/demon_search_gd.yaml --record \
+#       --set env.level_name=Bloodbath --set env.level_id_label=10565740
+# Search from a Start Pos instead of the level start (segment work):  --start-pos 3
+name: demon-search-gd
+seed: 0
+env:
+  id: gd
+  backend: socket
+  port: 5555
+  timeout: 60.0
+  level_name: ""            # for the logs and the ledger
+  level_id_label: ""        # online id, e.g. 10565740
+  difficulty: extreme demon
+search:
+  segment_ticks: 60         # 0.25 s
+  decision_ticks: 2
+  fine_decision_ticks: 1    # frame-perfect retries
+  beam_width: 12
+  max_found: 48             # (max_backtrack + 2) * beam_width + max_found + 2 <= 256 mod slots
+  candidates_per_node: 4
+  max_rounds: 8
+  lookahead_ticks: 150
+  max_backtrack: 6
+  retries_per_depth: 3
+  verify_every: 10          # replay from RESET every 10 segments (2.5 s); resync if a restore was inexact
+  time_limit_s: 43200       # 12 h
+train:
+  runs_dir: runs

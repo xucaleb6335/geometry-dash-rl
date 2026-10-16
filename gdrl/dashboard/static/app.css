@@ -192,3 +192,7 @@ a.lnk:hover{text-decoration:underline}
 ::-webkit-scrollbar{width:10px;height:10px}::-webkit-scrollbar-thumb{background:var(--line2);border-radius:9px}::-webkit-scrollbar-track{background:transparent}
 @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
 .tw td.note{min-width:260px}
+.watch{margin:16px 0;padding:12px 14px;border:1px solid var(--line2);border-radius:12px;background:var(--panel2)}
+.btn.play{border-color:var(--cyan)}
+.btn[disabled]{opacity:.45;cursor:not-allowed}
+.watchlog{margin:8px 0 0;max-height:160px;overflow:auto;font-size:12px;white-space:pre-wrap;color:var(--mute)}

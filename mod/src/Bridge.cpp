@@ -39,12 +39,16 @@ using RawSocket = int;
 
 RawSocket raw(intptr_t s) { return static_cast<RawSocket>(s); }
 
-uint32_t expectedLength(proto::MsgType type) {
+uint32_t expectedLength(proto::MsgType type, uint16_t version) {
     switch (type) {
         case proto::MsgType::Hello: return sizeof(proto::Hello);
         case proto::MsgType::Reset: return sizeof(proto::Reset);
         case proto::MsgType::Step: return sizeof(proto::Step);
         case proto::MsgType::Bye: return 0;
+        case proto::MsgType::SaveState:
+        case proto::MsgType::LoadState:
+        case proto::MsgType::DropState:
+            return version >= 2 ? sizeof(proto::Snapshot) : UINT32_MAX;
         default: return UINT32_MAX;  // not a client-to-server message
     }
 }
@@ -119,6 +123,7 @@ bool Bridge::acceptClient(int timeoutMs) {
     int yes = 1;
     setsockopt(c, IPPROTO_TCP, TCP_NODELAY, reinterpret_cast<const char*>(&yes), sizeof(yes));
     m_client = static_cast<intptr_t>(c);
+    m_version = 1;  // until this client's HELLO says otherwise
     log("bridge: client connected");
     return true;
 }
@@ -146,7 +151,7 @@ std::optional<Incoming> Bridge::receive(int timeoutMs) {
         return std::nullopt;
     }
     auto type = static_cast<proto::MsgType>(header.type);
-    if (header.magic != proto::kMagic || header.length != expectedLength(type)) {
+    if (header.magic != proto::kMagic || header.length != expectedLength(type, header.version)) {
         sendError(proto::ErrorCode::BadMessage, "bad magic, type or length");
         log("bridge: bad message, dropping client");
         dropClient();
@@ -171,6 +176,13 @@ std::optional<Incoming> Bridge::receive(int timeoutMs) {
         }
         case proto::MsgType::Bye:
             return Incoming{ByeMsg{}};
+        case proto::MsgType::SaveState:
+        case proto::MsgType::LoadState:
+        case proto::MsgType::DropState: {
+            SnapshotMsg msg{type, {}};
+            if (!readExact(&msg.msg, sizeof(msg.msg))) break;
+            return Incoming{msg};
+        }
         default:
             break;
     }
@@ -183,7 +195,7 @@ bool Bridge::sendFrame(proto::MsgType type, const void* payload, uint32_t length
     if (!hasClient()) return false;
     // One buffer, one send: avoids a tiny header packet followed by the payload.
     std::string buffer(sizeof(proto::Header) + length, '\0');
-    proto::Header header{proto::kMagic, proto::kVersion, static_cast<uint16_t>(type), length};
+    proto::Header header{proto::kMagic, m_version, static_cast<uint16_t>(type), length};
     std::memcpy(buffer.data(), &header, sizeof(header));
     if (length > 0) std::memcpy(buffer.data() + sizeof(header), payload, length);
 
@@ -201,12 +213,25 @@ bool Bridge::sendFrame(proto::MsgType type, const void* payload, uint32_t length
 }
 
 bool Bridge::sendHelloAck(uint16_t tickRate) {
-    proto::HelloAck msg{proto::kVersion, tickRate, proto::kMaxObjects, 0};
+    m_version = 1;
+    proto::HelloAck msg{1, tickRate, proto::kMaxObjects, 0};
+    return sendFrame(proto::MsgType::HelloAck, &msg, sizeof(msg));
+}
+
+bool Bridge::sendHelloAck(uint16_t tickRate, uint16_t maxSnapshots) {
+    proto::HelloAck msg{m_version, tickRate, m_version >= 2 ? proto::kMaxObjectsV2 : proto::kMaxObjects,
+                        static_cast<uint16_t>(m_version >= 2 ? maxSnapshots : 0)};
     return sendFrame(proto::MsgType::HelloAck, &msg, sizeof(msg));
 }
 
 bool Bridge::sendState(const proto::State& state) {
     return sendFrame(proto::MsgType::State, &state, sizeof(state));
+}
+
+bool Bridge::sendState(const proto::StateV2& state) {
+    if (m_version >= 2) return sendFrame(proto::MsgType::State, &state, sizeof(state));
+    proto::State v1 = proto::toV1(state);
+    return sendFrame(proto::MsgType::State, &v1, sizeof(v1));
 }
 
 bool Bridge::sendError(proto::ErrorCode code, std::string_view message) {
