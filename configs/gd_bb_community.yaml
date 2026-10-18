@@ -30,7 +30,7 @@ env:
     snapshot_retire_after: 150   # drop save points never passed in 150 tries (pre-UFO one was 0/570)
     demos:                 # search solution through the UFO tunnel at the policy's decision rate (4 ticks): starts every 100 units on it
       - {start_pos: 4, ticks: configs/demos/bb_ufo_4tick.npy, from_x: 10900, to_x: 12550, every: 100, align: 4}
-      - {start_pos: -2, ticks: configs/demos/bb_start_19k_ship_4tick.npy, from_x: 15000, to_x: 18350, every: 100, align: 4}   # level start to x 18,409 (cut before a mixed 4-tick block; the search reached 19,002) taking the ship portal at 16,695 (the 17k route skipped it as UFO and dead-ended at 17,710; 2026-10-17 16:00)
+      - {start_pos: -2, ticks: configs/demos/bb_start_31k_4tick.npy, from_x: 15000, to_x: 30500, every: 100, align: 4}   # level start to x 30,715: 29k route to 28,500, then a search through the gravity flips and the ship portal at 29,415 (UFO to 29,400, ship from 29,460 required; 2026-10-18 00:10)
     horizon_starts: 2      # mid-level episodes end 2 starts on: hard spots got ~1% of steps otherwise
 agent:
   name: ppo
@@ -39,7 +39,7 @@ agent:
   update_epochs: 10
   learning_rate: 5.0e-5   # constant 2.5e-4 (no annealing) wrecked the 42.8% policy in 1 h (eval 2-30%); 30%->43% was learned at an annealed ~1e-4..4e-5
   anneal_lr: false        # was annealed to 0 at total_steps: from ~45M steps on the LR was < 25%, 0 at 60M (2026-10-16)
-  bc_data: runs/bc8-gd-bb-community/checkpoints/bc.bcdata.npz   # BC anchor: the cloned level-start ship route to x 18,409 (PPO drifted off each cloned route within ~1 h, 2026-10-17)
+  bc_data: runs/bc13-gd-bb-community/checkpoints/bc.bcdata.npz   # BC anchor: the cloned level-start route to x 30,600 (ship, ball, gravity, cube, UFO, ship portals taken) (PPO drifted off each cloned route within ~1 h, 2026-10-17)
   bc_coef: 1.0
   gamma: 0.99
   gae_lambda: 0.95

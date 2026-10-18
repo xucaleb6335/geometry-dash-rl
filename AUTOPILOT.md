@@ -452,3 +452,46 @@ powershell -ExecutionPolicy Bypass -File .\overnight.ps1 -Level saved:141625101 
   mixed 4-tick block that dies either way), demo starts 15,000-18,350,
   demo_bc -> `runs/bc8-gd-bb-community` (greedy from the level start
   x 18,507, ~47.2%, 3/3; watch preset `bb_47`); anchor now bc8's pairs.
+- 2026-10-17 19:27: after the ship route, PPO (anchored) went 47% -> ~57%
+  in 2 h, then stopped at x 22,413 (UFO, just after the normal-size portal
+  at 22,365; a logged greedy run takes every portal correctly, so a hard
+  spot, not a skipped portal). The root-replay search (exact restores) from
+  level-start roots 21,950 / 22,150 / 22,250 solved all three in 7-10 min,
+  each replaying alive to ~23,750. `configs/demos/bb_start_23k_4tick.npy`
+  (root 21,950, to x 23,767), demo starts 15,000-23,600, demo_bc ->
+  `runs/bc9-gd-bb-community` (greedy from the level start x 23,781, ~60.4%,
+  3/3; watch preset `bb_60`); anchor now bc9's pairs.
+- 2026-10-17 20:27: from bc9 every run from the start died at x 23,783,
+  16 units past the cloned route's end (the search stops at its goal_x in a
+  state that may be doomed just ahead; leave margin: clone to well before
+  the demo's end). Searches with the policy as prefix died in the UFO
+  tunnel on the first attempt after a level reopen (history effect), so the
+  prefix is now the demo itself (`DEMO=` in scratchpad `seg_gate.py`, a
+  configurable mode gate: `GATE_X/GATE_END/GATE_MODE`). Roots 23,000 /
+  23,300 / 23,500 with ball mode required after 24,060 all solved in 5-8
+  min to x ~25,050. `configs/demos/bb_start_25k_4tick.npy`, demo starts
+  15,000-24,800, demo_bc -> `runs/bc10-gd-bb-community` (greedy from the
+  level start x 25,061, ~63.7%, 3/3; watch preset `bb_64`); anchor = bc10.
+- 2026-10-17 21:27: from bc10 (64.5-64.9% evals) runs died x 25,050-25,562,
+  none past the gravity-up portal at 25,575. Searches from roots 24,500 /
+  24,700 / 24,900 (demo prefix; gates: ball 24,060-26,520, cube
+  26,600-27,800; `GATES=x0:x1:mode,...`) all solved in 7-9 min to x ~27,000.
+  `configs/demos/bb_start_27k_4tick.npy` (root 24,700), demo starts
+  15,000-26,800, demo_bc -> `runs/bc11-gd-bb-community`: greedy from the
+  level start x 28,074 (~71.4%), 3/3, past the UFO portal at 28,005; watch
+  preset `bb_71`; anchor = bc11.
+- 2026-10-17 22:27: from bc11 (71.3% evals) runs died at x 28,050-28,150,
+  just after the UFO + 3x portal at 28,005 (the never-cleared community
+  StartPos 27,915 is there too). Search from root 26,900 (27k demo prefix,
+  gates cube 26,600-27,800 / UFO 28,060-28,990) solved to x 28,943 in
+  12 min. `configs/demos/bb_start_29k_4tick.npy`, demo starts
+  15,000-28,700, demo_bc -> `runs/bc12-gd-bb-community` (greedy from the
+  level start x 28,906, ~73.5%, 3/3; watch preset `bb_73`); anchor = bc12.
+- 2026-10-17 23:27: from bc12 every run from the start died at x 28,906
+  (155/218), ~60 units past the cloned route's end, before the gravity
+  flips at 28,995. Search (29k demo prefix, gates UFO 28,060-29,400 / ship
+  29,460-30,760) from root 28,500 solved to x 30,715 in 18 min (roots
+  28,700 and 28,300 did not, 20 min each). `configs/demos/bb_start_31k_4tick.npy`,
+  demo starts 15,000-30,500, demo_bc -> `runs/bc13-gd-bb-community`
+  (greedy from the level start x 30,769, ~78.2%, 3/3, past the UFO portal
+  at 30,765; watch preset `bb_78`); anchor = bc13.

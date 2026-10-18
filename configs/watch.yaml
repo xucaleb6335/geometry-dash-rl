@@ -62,3 +62,51 @@ bb_47:
   checkpoint: results/watch/bb_47pct.pt   # bc8: cloned ship route (2026-10-17 16:00)
   legacy_view: false
   start_pos: -2
+bb_57:
+  name: Bloodbath (PPO after the ship route, ~57% evals, 2026-10-17 18:30)
+  dashboard_level: gd:10565740
+  level: saved:77986175
+  config: results/watch/bb_57pct.config.yaml
+  checkpoint: results/watch/bb_57pct.pt   # PPO from bc8 with the BC anchor, ~2.5 h
+  legacy_view: false
+  start_pos: -2
+bb_60:
+  name: Bloodbath (to x 23,781 from the level start, ~60.4%)
+  dashboard_level: gd:10565740
+  level: saved:77986175
+  config: results/watch/bb_60pct.config.yaml
+  checkpoint: results/watch/bb_60pct.pt   # bc9: PPO policy + searched route past x 22,413 (2026-10-17 19:55)
+  legacy_view: false
+  start_pos: -2
+bb_64:
+  name: Bloodbath (to x 25,061 from the level start, ~63.7%, ball portal taken)
+  dashboard_level: gd:10565740
+  level: saved:77986175
+  config: results/watch/bb_64pct.config.yaml
+  checkpoint: results/watch/bb_64pct.pt   # bc10: route through the ball portal at 24,015 (2026-10-17 20:50)
+  legacy_view: false
+  start_pos: -2
+bb_71:
+  name: Bloodbath (to x 28,074 from the level start, ~71.4%)
+  dashboard_level: gd:10565740
+  level: saved:77986175
+  config: results/watch/bb_71pct.config.yaml
+  checkpoint: results/watch/bb_71pct.pt   # bc11: route through the gravity and cube portals (2026-10-17 21:55)
+  legacy_view: false
+  start_pos: -2
+bb_73:
+  name: Bloodbath (to x 28,906 from the level start, ~73.5%)
+  dashboard_level: gd:10565740
+  level: saved:77986175
+  config: results/watch/bb_73pct.config.yaml
+  checkpoint: results/watch/bb_73pct.pt   # bc12: route through the UFO portal at 28,005 (2026-10-17 22:55)
+  legacy_view: false
+  start_pos: -2
+bb_78:
+  name: Bloodbath (to x 30,769 from the level start, ~78.2%)
+  dashboard_level: gd:10565740
+  level: saved:77986175
+  config: results/watch/bb_78pct.config.yaml
+  checkpoint: results/watch/bb_78pct.pt   # bc13: route through the gravity flips and the ship portal at 29,415 (2026-10-18 00:15)
+  legacy_view: false
+  start_pos: -2
