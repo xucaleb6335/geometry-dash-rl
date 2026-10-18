@@ -115,6 +115,6 @@ bb_83:
   dashboard_level: gd:10565740
   level: saved:77986175
   config: results/watch/bb_83pct.config.yaml
-  checkpoint: results/watch/bb_83pct.pt   # bc14: route through the ship portal at 31,065 and the ball portal at 31,691 (2026-10-18 02:25)
+  checkpoint: results/watch/bb_83pct.pt   # bc15 (bc14 re-cloned on the opacity-free view): route through the ship portal at 31,065 and the ball portal at 31,691 (2026-10-18 02:25)
   legacy_view: false
   start_pos: -2

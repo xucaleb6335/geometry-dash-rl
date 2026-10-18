@@ -39,7 +39,7 @@ agent:
   update_epochs: 10
   learning_rate: 5.0e-5   # constant 2.5e-4 (no annealing) wrecked the 42.8% policy in 1 h (eval 2-30%); 30%->43% was learned at an annealed ~1e-4..4e-5
   anneal_lr: false        # was annealed to 0 at total_steps: from ~45M steps on the LR was < 25%, 0 at 60M (2026-10-16)
-  bc_data: runs/bc14-gd-bb-community/checkpoints/bc.bcdata.npz   # BC anchor: the cloned level-start route to x 32,500 (ship, ball, gravity, cube, UFO, ship, ball portals taken) (PPO drifted off each cloned route within ~1 h, 2026-10-17)
+  bc_data: runs/bc15-gd-bb-community/checkpoints/bc.bcdata.npz   # BC anchor: the cloned level-start route to x 32,500 (ship, ball, gravity, cube, UFO, ship, ball portals taken) (PPO drifted off each cloned route within ~1 h, 2026-10-17)
   bc_coef: 1.0
   gamma: 0.99
   gae_lambda: 0.95

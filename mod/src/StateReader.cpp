@@ -234,7 +234,13 @@ void readState(PlayLayer* layer, proto::StateV2& out) {
         CCRect rect = obj->getObjectRect();
         if (rect.getMaxX() < searchLeft) continue;  // already passed
         uint8_t flags = 0;
-        if (obj->m_isHide || obj->getOpacity() == 0) flags |= proto::kObjHidden;
+        // Opacity is not used: it is visual state that alpha triggers leave
+        // behind from the previous attempt (a block faded out last attempt is
+        // still at opacity 0 on the next one until its trigger runs again), so
+        // the same physics state gave different views (and different block
+        // merging) depending on the attempt history. Bloodbath 2026-10-18:
+        // after a level reopen the cloned policy died at x 6,095 every time.
+        if (legacy ? (obj->m_isHide || obj->getOpacity() == 0) : obj->m_isHide) flags |= proto::kObjHidden;
         // TODO(v2): kObjActivated (used orbs/pads) and kObjMoved, after an in-game look.
         candidates.push_back({rect, *cls, flags});
     }

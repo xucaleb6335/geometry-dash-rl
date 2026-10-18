@@ -504,3 +504,17 @@ powershell -ExecutionPolicy Bypass -File .\overnight.ps1 -Level saved:141625101 
   `configs/demos/bb_start_33k_4tick.npy` (root 30,200), demo starts
   15,000-32,400, demo_bc -> `runs/bc14-gd-bb-community` (greedy from the
   level start x 32,811, ~83.4%, 3/3; watch preset `bb_83`); anchor = bc14.
+- 2026-10-18 03:27: PPO from bc14 fell back to 74.3% (every run from the
+  start died at x 29,230-29,240, on the cloned route; the latest checkpoint
+  played greedily died at 16,941). Found a real source of the "history
+  effect": the bridge marked blocks HIDDEN when their **opacity** was 0, and
+  hidden blocks were not merged. Opacity is visual state that alpha
+  triggers leave behind from earlier attempts, so the same physics state
+  gave a different object view depending on attempt history (fresh after a
+  level reopen vs after the level had been played). Reproduced: after a
+  reopen bc14 died at x 6,095 every time until any attempt had passed that
+  area, then reached 32,811. Fix (mod, non-legacy view): HIDDEN = editor
+  hide flag only, opacity ignored. Fresh and played views are now
+  identical along the whole route (object-by-object check to x 32,625).
+  bc14 re-cloned on the new view -> `runs/bc15-gd-bb-community` (x 32,811
+  from the level start, 3/3, also right after a reopen); anchor = bc15.
