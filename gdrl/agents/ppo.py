@@ -18,6 +18,7 @@ import numpy as np
 import torch
 from gymnasium import spaces
 from torch import nn
+import torch.nn.functional as F
 from torch.distributions import Categorical
 
 from gdrl.agents.base import ActOutput, Agent, Rollout
@@ -51,6 +52,14 @@ class PPOConfig:
     # (measured on the real game: act() took 1.8 ms/step on cuda, the env 0.7).
     act_device: str | None = None  # None = same as device
     total_updates: int = 1  # set by train.py; used for learning-rate annealing
+    # Behaviour-cloning anchor: (obs, action, weight) pairs saved by
+    # gdrl.tools.demo_bc (X, Y, W in an .npz). Each minibatch adds
+    # bc_coef * weighted cross-entropy on bc_batch of them, so PPO keeps a
+    # cloned route while it learns elsewhere (on Bloodbath, PPO after
+    # cloning drifted off each searched route within an hour).
+    bc_data: str | None = None
+    bc_coef: float = 0.0
+    bc_batch: int = 256
 
 
 def compute_gae(
@@ -113,6 +122,11 @@ class PPOAgent(Agent):
         self.value = self._build_net(1, out_std=1.0).to(self.device)
         self.optimizer = torch.optim.Adam(self._parameters(), lr=cfg.learning_rate, eps=cfg.adam_eps)
         self.act_device = torch.device(cfg.act_device) if cfg.act_device else self.device
+        self._bc = None
+        if cfg.bc_data and cfg.bc_coef > 0:
+            d = np.load(cfg.bc_data)
+            self._bc = (self._tensor(d["X"]), torch.as_tensor(d["Y"], dtype=torch.int64, device=self.device),
+                        self._tensor(d["W"]))
         self._sync_actor()
 
     def _sync_actor(self) -> None:
@@ -206,6 +220,8 @@ class PPOAgent(Agent):
 
         minibatch_size = max(1, B // cfg.num_minibatches)
         stats: dict[str, list[float]] = {k: [] for k in ("policy_loss", "value_loss", "entropy", "approx_kl", "clipfrac")}
+        if self._bc is not None:
+            stats["bc_loss"] = []
         for _epoch in range(cfg.update_epochs):
             perm = torch.randperm(B, device=self.device)
             epoch_kl = []
@@ -243,6 +259,12 @@ class PPOAgent(Agent):
                     v_loss = 0.5 * ((new_value - b_returns[mb]) ** 2).mean()
 
                 loss = pg_loss - cfg.ent_coef * entropy + cfg.vf_coef * v_loss  # detail 10
+                if self._bc is not None:
+                    bx, by, bw = self._bc
+                    i = torch.randint(0, len(by), (min(cfg.bc_batch, len(by)),), device=self.device)
+                    bc_loss = (F.cross_entropy(self.policy(bx[i]), by[i], reduction="none") * bw[i]).sum() / bw[i].sum()
+                    loss = loss + cfg.bc_coef * bc_loss
+                    stats["bc_loss"].append(bc_loss.item())
 
                 self.optimizer.zero_grad()
                 loss.backward()

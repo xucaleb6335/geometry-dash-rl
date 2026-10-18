@@ -38,3 +38,27 @@ bb_41:
   checkpoint: results/watch/bb_41pct.pt   # PPO after the wave demo (2026-10-16 10:27), greedy from the start ~40.9%
   legacy_view: false
   start_pos: -2
+bb_43:
+  name: Bloodbath (wave + UFO from the level start, 42.8%)
+  dashboard_level: gd:10565740
+  level: saved:77986175
+  config: results/watch/bb_43pct.config.yaml
+  checkpoint: results/watch/bb_43pct.pt   # bc4: behaviour cloning of a level-start search route to x 16,788 (2026-10-16 20:20)
+  legacy_view: false
+  start_pos: -2
+bb_45:
+  name: Bloodbath (to x 17,628 from the level start, 44.8%)
+  dashboard_level: gd:10565740
+  level: saved:77986175
+  config: results/watch/bb_45pct.config.yaml
+  checkpoint: results/watch/bb_45pct.pt   # bc6: night PPO at lr 5e-5 + cloning a level-start route to x 17,668 (2026-10-17 08:30)
+  legacy_view: false
+  start_pos: -2
+bb_47:
+  name: Bloodbath (to x 18,507 from the level start, 47.2%, takes the ship portal)
+  dashboard_level: gd:10565740
+  level: saved:77986175
+  config: results/watch/bb_47pct.config.yaml
+  checkpoint: results/watch/bb_47pct.pt   # bc8: cloned ship route (2026-10-17 16:00)
+  legacy_view: false
+  start_pos: -2

@@ -156,6 +156,8 @@ def main(argv: list[str] | None = None) -> None:
     env.close()
     Path(a.out).parent.mkdir(parents=True, exist_ok=True)
     agent.save(a.out)
+    # The pairs, for PPO's behaviour-cloning anchor (agent.bc_data / bc_coef).
+    np.savez_compressed(Path(a.out).with_suffix(".bcdata.npz"), X=X.cpu().numpy(), Y=Y.cpu().numpy(), W=W.cpu().numpy())
     print("saved", a.out)
 
 

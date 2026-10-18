@@ -402,3 +402,53 @@ powershell -ExecutionPolicy Bypass -File .\overnight.ps1 -Level saved:141625101 
   checkpoint, `runs/20261016-110740_gd-bb-community_s1`). The best policy
   from the level start so far is `results/watch/bb_41pct.pt` (watch preset
   `bb_41`, 40.9%).
+- 20:30: why the SP5 routes did not transfer: not a level/trigger difference
+  (modes, speeds and the object view match on both routes, and save/load is
+  exact there) and not the 4-tick decision phase (1-, 2- and 4-tick searches
+  from the level-start state all stalled at x ~15,463). The search
+  (`lookahead_ticks` 80) committed to a high UFO path that is a dead end
+  ~150 units later. With `lookahead_ticks: 240`, `beam_width: 16`,
+  `max_found: 24` it went from the policy's own level-start state at
+  x 15,100 to x 16,788 in ~2 min. `configs/demos/bb_start_16k_4tick.npy` is
+  that route from the real level start (one mixed 4-tick block set to
+  release); demo starts now 15,000-16,700 on it. demo_bc ->
+  `runs/bc4-gd-bb-community/checkpoints/bc.pt`: the greedy policy from the
+  level start reaches x 16,833 (~42.8%), 3/3. Prefer level-start routes and
+  a long lookahead for future searches.
+- 2026-10-16 22:57: `anneal_lr: false` at the full 2.5e-4 wrecked the
+  policy within an hour (eval 2-30%, runs from the start rarely past the
+  tunnel). 00:30: restarted from bc4 (copied to `runs/bc5-gd-bb-community`)
+  with a constant `learning_rate: 5e-5`. Best policy from the level start:
+  `results/watch/bb_43pct.pt` (watch preset `bb_43`, 42.8%, x 16,833).
+- 2026-10-17 night (lr 5e-5): eval median 41.4% for ~4 h, best single evals
+  54.8%; runs from the start mostly died at x ~16,300 (p90 flat at 16,300
+  for 3 h). Searches from level-start roots 15,900 / 15,500 / 16,100 gave
+  solutions whose continuous replay died at x 16,285, so save/load is not
+  exact somewhere before it (hidden state). Root 15,700 replayed alive to
+  17,668: `configs/demos/bb_start_17k_4tick.npy`, demo starts 15,000-17,550.
+  demo_bc -> `runs/bc6-gd-bb-community/checkpoints/bc.pt`, greedy from the
+  level start x 17,628 (~44.8%), 3/3. Watch preset `bb_45`.
+- 2026-10-17 10:30: PPO from bc6 drifted back to ~41% in ~1 h (deaths
+  x 15,750-16,200, on the cloned route), the third time a cloned route
+  eroded. Added a behaviour-cloning anchor to PPO (`agent.bc_data`,
+  `bc_coef`, `bc_batch`): each minibatch adds weighted cross-entropy on the
+  demo_bc pairs, which demo_bc now saves as `<out>.bcdata.npz`. bc7 = bc6
+  plus its pairs (the route from the level start to x 17,600 plus the
+  policy's own actions before the search root). Resumed from
+  `runs/bc7-gd-bb-community` with `bc_coef: 1.0`; first evals 44.8%.
+- 2026-10-17 12:27-16:05: the anchored policy held 45% but every run died at
+  x ~17,710. The owner watched it and spotted the cause: the route flew past
+  the **ship portal at x 16,695** (with a 3x speed portal) as a UFO; the gaps
+  after 17,700 need the ship. The search had preferred the UFO path because
+  it survives its 240-tick lookahead (it never sees the dead end), PPO
+  because the UFO path reliably pays 45%, and the anchor locked it in. The
+  bridge's object view never showed that portal on the route; the level
+  string does (`gdctl level-export`). Fix: search from level-start roots
+  16,400/16,500 with a gate that counts "past x 16,760 and not a ship" as
+  death, and (ship-mode save/load is inexact after ~16,800) restore nodes
+  by loading the exact pre-portal root and replaying their ticks. Both
+  roots reached x ~19,000 and replay alive from the level start.
+  `configs/demos/bb_start_19k_ship_4tick.npy` (cut at x 18,409 before a
+  mixed 4-tick block that dies either way), demo starts 15,000-18,350,
+  demo_bc -> `runs/bc8-gd-bb-community` (greedy from the level start
+  x 18,507, ~47.2%, 3/3; watch preset `bb_47`); anchor now bc8's pairs.
