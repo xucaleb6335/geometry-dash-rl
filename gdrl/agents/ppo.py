@@ -137,6 +137,20 @@ class PPOAgent(Agent):
                         self._tensor(d["W"]))
         self._sync_actor()
 
+    def add_bc(self, X: np.ndarray, Y: np.ndarray, W: np.ndarray) -> None:
+        """Append (obs, action, weight) pairs to the BC anchor (train.eval_ratchet)."""
+        if self._bc is None:
+            return
+        bx, by, bw = self._bc
+        self._bc = (torch.cat([bx, self._tensor(X)]),
+                    torch.cat([by, torch.as_tensor(Y, dtype=torch.int64, device=self.device)]),
+                    torch.cat([bw, self._tensor(W)]))
+
+    def bc_arrays(self) -> tuple[np.ndarray, np.ndarray, np.ndarray] | None:
+        if self._bc is None:
+            return None
+        return tuple(t.detach().cpu().numpy() for t in self._bc)
+
     def _sync_actor(self) -> None:
         """Point act() at the networks, or at fresh copies on act_device."""
         if self.act_device == self.device:

@@ -33,12 +33,16 @@ def _store_extras(buffers: dict[str, np.ndarray], t: int, extras: dict[str, np.n
         buffers[key][t] = value
 
 
-def greedy_episode(agent, env, options: dict[str, Any] | None = None) -> dict[str, float]:
-    """Run one deterministic episode on a single (unvectorized) env."""
+def greedy_episode(agent, env, options: dict[str, Any] | None = None, record: list | None = None) -> dict[str, float]:
+    """Run one deterministic episode on a single (unvectorized) env.
+
+    With ``record`` (a list), (obs, action) of every decision is appended to it."""
     obs, info = env.reset(options=dict(options) if options else None)
     total, length = 0.0, 0
     while True:
         action = int(agent.act(obs[None], deterministic=True).action[0])
+        if record is not None:
+            record.append((np.array(obs, copy=True), action))
         obs, reward, terminated, truncated, info = env.step(action)
         total += float(reward)
         length += 1
@@ -121,6 +125,7 @@ def train(cfg: dict[str, Any]) -> Path:
     print(f"run dir: {run_dir}")
 
     try:
+        best_eval = float((tcfg.get("eval_ratchet") or {}).get("start", -1.0))  # train.eval_ratchet; >= 0 also adds the first eval
         while global_step < total_steps:
             obs_buf = np.zeros((T, num_envs, *obs_shape), dtype=obs_dtype)
             final_buf = np.zeros_like(obs_buf)
@@ -191,8 +196,29 @@ def train(cfg: dict[str, Any]) -> Path:
                 # One greedy episode from eval_options (e.g. {start: 0}, the
                 # level start under a curriculum). The episode in progress is
                 # dropped; the rollout already bootstrapped from its last state.
-                result = greedy_episode(agent, envs.envs[0], tcfg.get("eval_options"))
+                ratchet = tcfg.get("eval_ratchet") or {}
+                record = [] if ratchet else None
+                result = greedy_episode(agent, envs.envs[0], tcfg.get("eval_options"), record)
                 logger.log(global_step, {f"eval/{k}": v for k, v in result.items()})
+                if ratchet and hasattr(agent, "add_bc") and result["progress"] > best_eval + float(ratchet.get("margin", 0.002)):
+                    # Ratchet: a greedy run that beats the best one so far is
+                    # added to the BC anchor (minus its last decisions, which
+                    # led into the death), so the next updates cannot lose it.
+                    # Why: PPO's greedy run flipped between consecutive updates
+                    # (Bloodbath 2026-10-18: 91.5% at one update, 89.1% at the
+                    # next, never kept).
+                    keep = record[: max(0, len(record) - int(ratchet.get("drop", 50)))]
+                    if best_eval >= 0 and keep:
+                        agent.add_bc(np.stack([o for o, _ in keep]).astype(np.float32),
+                                     np.array([a for _, a in keep], dtype=np.int64),
+                                     np.full(len(keep), float(ratchet.get("weight", 3.0)), dtype=np.float32))
+                        arrays = agent.bc_arrays()
+                        if arrays is not None:
+                            np.savez_compressed(run_dir / "checkpoints" / "bc_ratchet.npz", X=arrays[0], Y=arrays[1], W=arrays[2])
+                        agent.save(run_dir / "checkpoints" / "best_eval.pt")
+                        print(f"ratchet: eval {result['progress']:.1%} > best {best_eval:.1%}; "
+                              f"{len(keep)} decisions added to the BC anchor", flush=True)
+                    best_eval = result["progress"]
                 print(f"eval  step {global_step:>9d}  progress {result['progress']:6.1%}  "
                       f"completed {int(result['completed'])}  length {int(result['length'])}", flush=True)
                 obs, _ = envs.reset()

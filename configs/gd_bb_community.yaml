@@ -54,6 +54,7 @@ train:
   checkpoint_every: 5     # updates (every 20,480 steps)
   eval_every: 10          # updates: one greedy episode from the level start
   eval_options: {start: 0}
+  eval_ratchet: {start: 0.0, margin: 0.002, drop: 50, weight: 3.0}   # an eval that beats the best so far joins the BC anchor (minus its last 50 decisions); the greedy run flipped 91.5% <-> 89.1% between updates (2026-10-18)
 eval:
   episodes: 20
   sticky_prob: 0.1

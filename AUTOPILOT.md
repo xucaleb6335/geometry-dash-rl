@@ -535,3 +535,20 @@ powershell -ExecutionPolicy Bypass -File .\overnight.ps1 -Level saved:141625101 
   `configs/demos/bb_start_35k_4tick.npy` (root 32,400), demo starts
   15,000-34,300, demo_bc -> `runs/bc17-gd-bb-community` (greedy from the
   level start x 34,908, ~88.7%, 3/3; watch preset `bb_89`); anchor = bc17.
+- 2026-10-18 12:00-12:35: the owner watched the "91.5%" policy and it died
+  at 89.1% (x 35,082), 3/3, also in fast greedy runs (so not watch mode,
+  not the attempt history: a demo pass or a run from a late StartPos first
+  changed nothing). Cause: the greedy run flips between consecutive PPO
+  updates (evals alternate 91.5% / 89.1%), and the saved checkpoint was a
+  89.1% one; update 20,770 reaches x 36,014 (the dual portal). Fix:
+  `train.eval_ratchet` -- an eval that beats the best so far is added to
+  the BC anchor (minus its last 50 decisions; weight 3), the anchor is
+  saved as `checkpoints/bc_ratchet.npz` and the policy as
+  `checkpoints/best_eval.pt` (watch that one). On a restart, point
+  `agent.bc_data` at the newest `bc_ratchet.npz` to keep the added runs.
+  Resumed from update 20,770 (`runs/bc18-gd-bb-community`); its first eval
+  (91.5%) was added. Watch preset `bb_91` = update 20,770.
+- Dual-mode search (2026-10-18 10:30-12:15): roots in the wave section
+  (34,100 / 34,450) reached x 36,460-36,720 but their full replays died
+  right after the root (save/load inexact in wave mode); root 33,700 (UFO,
+  before the wave portal) replayed alive but stopped at x 35,947 in 30 min.

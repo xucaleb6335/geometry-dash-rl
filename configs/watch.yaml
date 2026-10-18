@@ -126,3 +126,11 @@ bb_89:
   checkpoint: results/watch/bb_89pct.pt   # bc17: route through the UFO/gravity section and the wave portal at 33,825 (2026-10-18 07:25)
   legacy_view: false
   start_pos: -2
+bb_91:
+  name: Bloodbath (to x ~36,020 from the level start, ~91.5%)
+  dashboard_level: gd:10565740
+  level: saved:77986175
+  config: results/watch/bb_91pct.config.yaml
+  checkpoint: results/watch/bb_91pct.pt   # PPO from bc17, update 20,770: dies at the dual portal at 36,015 (2026-10-18 10:00)
+  legacy_view: false
+  start_pos: -2
