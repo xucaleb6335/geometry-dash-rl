@@ -518,3 +518,12 @@ powershell -ExecutionPolicy Bypass -File .\overnight.ps1 -Level saved:141625101 
   identical along the whole route (object-by-object check to x 32,625).
   bc14 re-cloned on the new view -> `runs/bc15-gd-bb-community` (x 32,811
   from the level start, 3/3, also right after a reopen); anchor = bc15.
+- 2026-10-18 05:27: from bc15 PPO reached 84.9% (x 33,410) in 45 min, then
+  the eval fell to 41-58% with deaths spread along the cloned route. The
+  latest checkpoint got exactly one anchor decision wrong (decision 3,119 of
+  5,434, x ~17,490, a top death spot) while the mean bc_loss stayed 0.0002:
+  with 16k pairs and 256 sampled per minibatch, that pair was rarely in a
+  BC batch. New `agent.bc_hard_p` (0.98): before each epoch, pairs where
+  the demo action has p < 0.98 are added to every minibatch's BC batch
+  (stat `train/bc_hard`). Restarted from bc15 (copied to
+  `runs/bc16-gd-bb-community` so the resume picks it).

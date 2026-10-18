@@ -41,6 +41,7 @@ agent:
   anneal_lr: false        # was annealed to 0 at total_steps: from ~45M steps on the LR was < 25%, 0 at 60M (2026-10-16)
   bc_data: runs/bc15-gd-bb-community/checkpoints/bc.bcdata.npz   # BC anchor: the cloned level-start route to x 32,500 (ship, ball, gravity, cube, UFO, ship, ball portals taken) (PPO drifted off each cloned route within ~1 h, 2026-10-17)
   bc_coef: 1.0
+  bc_hard_p: 0.98         # pairs where the demo action has p < 0.98 go into every BC batch (one flipped decision at x 17,490 broke the 85% route, 2026-10-18)
   gamma: 0.99
   gae_lambda: 0.95
   ent_coef: 0.02          # 9 starts stuck at 0% with the same death spot for 300k+ steps at 0.01

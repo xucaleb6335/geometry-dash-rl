@@ -60,6 +60,14 @@ class PPOConfig:
     bc_data: str | None = None
     bc_coef: float = 0.0
     bc_batch: int = 256
+    # Hard pairs: before each epoch, pairs where the policy gives the demo
+    # action less than bc_hard_p are added to every minibatch's BC batch (up
+    # to bc_batch of them, lowest first). Why: a route breaks on one flipped
+    # decision; with 16k pairs and 256 sampled per minibatch that pair was
+    # seen in ~1.6% of minibatches and weighed 1/256 there, so PPO flipped it
+    # (Bloodbath 2026-10-18: one decision at x ~17,490, mean bc_loss 0.0002,
+    # eval 85% -> 41-58% in 1.5 h). 0 disables.
+    bc_hard_p: float = 0.0
 
 
 def compute_gae(
@@ -225,6 +233,15 @@ class PPOAgent(Agent):
         for _epoch in range(cfg.update_epochs):
             perm = torch.randperm(B, device=self.device)
             epoch_kl = []
+            hard = None
+            if self._bc is not None and cfg.bc_hard_p > 0:
+                bx, by, _bw = self._bc
+                with torch.no_grad():
+                    p_demo = torch.softmax(self.policy(bx), dim=-1).gather(1, by[:, None]).squeeze(1)
+                low = (p_demo < cfg.bc_hard_p).nonzero().squeeze(1)
+                if len(low):
+                    hard = low[p_demo[low].argsort()[: cfg.bc_batch]]
+                stats.setdefault("bc_hard", []).append(float(len(low)))
             for start in range(0, B, minibatch_size):
                 mb = perm[start : start + minibatch_size]
 
@@ -262,6 +279,8 @@ class PPOAgent(Agent):
                 if self._bc is not None:
                     bx, by, bw = self._bc
                     i = torch.randint(0, len(by), (min(cfg.bc_batch, len(by)),), device=self.device)
+                    if hard is not None:
+                        i = torch.cat([i, hard])
                     bc_loss = (F.cross_entropy(self.policy(bx[i]), by[i], reduction="none") * bw[i]).sum() / bw[i].sum()
                     loss = loss + cfg.bc_coef * bc_loss
                     stats["bc_loss"].append(bc_loss.item())
