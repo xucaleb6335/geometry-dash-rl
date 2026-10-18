@@ -552,3 +552,15 @@ powershell -ExecutionPolicy Bypass -File .\overnight.ps1 -Level saved:141625101 
   (34,100 / 34,450) reached x 36,460-36,720 but their full replays died
   right after the root (save/load inexact in wave mode); root 33,700 (UFO,
   before the wave portal) replayed alive but stopped at x 35,947 in 30 min.
+- 2026-10-18 13:27: with the ratchet every eval was exactly 91.5%, but 145
+  of 182 runs from the start died at the cube+dual portal (x 36,010-36,020).
+  Search with the 33,700 search's route as prefix (it replays alive to
+  35,947), roots 35,700 / 35,500 / 35,300 in the ship section, gates ship
+  to 35,990 / cube 36,075-36,700: all solved in 4-7 min; roots 35,500 and
+  35,300 replay alive from the level start (35,700's died at 35,750). The
+  route had 5 mixed 4-tick blocks (in the dual part); 15 of the 32
+  uniform settings replay alive, one is `configs/demos/bb_start_37k_4tick.npy`
+  (to x 36,730). Demo starts 15,000-36,500, demo_bc from bc18 ->
+  `runs/bc19-gd-bb-community`: greedy from the level start x 36,967
+  (~93.9%, 3/3) -- through dual although the encoder has no player 2;
+  watch preset `bb_94`; anchor = bc19.

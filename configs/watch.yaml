@@ -134,3 +134,11 @@ bb_91:
   checkpoint: results/watch/bb_91pct.pt   # PPO from bc17, update 20,770: dies at the dual portal at 36,015 (2026-10-18 10:00)
   legacy_view: false
   start_pos: -2
+bb_94:
+  name: Bloodbath (to x 36,967 from the level start, ~93.9%)
+  dashboard_level: gd:10565740
+  level: saved:77986175
+  config: results/watch/bb_94pct.config.yaml
+  checkpoint: results/watch/bb_94pct.pt   # bc19: route through the dual section at 36,015 (2026-10-18 14:10)
+  legacy_view: false
+  start_pos: -2
