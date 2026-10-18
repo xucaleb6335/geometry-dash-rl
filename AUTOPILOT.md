@@ -495,3 +495,12 @@ powershell -ExecutionPolicy Bypass -File .\overnight.ps1 -Level saved:141625101 
   demo starts 15,000-30,500, demo_bc -> `runs/bc13-gd-bb-community`
   (greedy from the level start x 30,769, ~78.2%, 3/3, past the UFO portal
   at 30,765; watch preset `bb_78`); anchor = bc13.
+- 2026-10-18 01:27: PPO from bc13 reached x 31,138 (79.1%) in ~1 h, then
+  every run from the start died there (196/552), just after the ship portal
+  at 31,065. Search (31k demo prefix, gates ship 31,120-31,690 / ball
+  31,750-32,640) from roots 30,400 / 30,200 / 30,550 all solved in 12-18
+  min to x ~32,600; root 30,400's full replay from the level start died at
+  30,477 (history effect), the other two replayed alive.
+  `configs/demos/bb_start_33k_4tick.npy` (root 30,200), demo starts
+  15,000-32,400, demo_bc -> `runs/bc14-gd-bb-community` (greedy from the
+  level start x 32,811, ~83.4%, 3/3; watch preset `bb_83`); anchor = bc14.

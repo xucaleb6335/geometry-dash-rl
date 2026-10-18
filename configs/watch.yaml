@@ -110,3 +110,11 @@ bb_78:
   checkpoint: results/watch/bb_78pct.pt   # bc13: route through the gravity flips and the ship portal at 29,415 (2026-10-18 00:15)
   legacy_view: false
   start_pos: -2
+bb_83:
+  name: Bloodbath (to x 32,811 from the level start, ~83.4%)
+  dashboard_level: gd:10565740
+  level: saved:77986175
+  config: results/watch/bb_83pct.config.yaml
+  checkpoint: results/watch/bb_83pct.pt   # bc14: route through the ship portal at 31,065 and the ball portal at 31,691 (2026-10-18 02:25)
+  legacy_view: false
+  start_pos: -2
