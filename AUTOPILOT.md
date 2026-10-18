@@ -527,3 +527,11 @@ powershell -ExecutionPolicy Bypass -File .\overnight.ps1 -Level saved:141625101 
   the demo action has p < 0.98 are added to every minibatch's BC batch
   (stat `train/bc_hard`). Restarted from bc15 (copied to
   `runs/bc16-gd-bb-community` so the resume picks it).
+- 2026-10-18 06:27: with hard BC pairs the route held (evals 84-85%, a few
+  dips to ~45% at x ~17,700), but the frontier sat at x ~33,410 for ~2 h
+  across two runs. Search (33k demo prefix, gates UFO 32,700-33,800 / wave
+  33,880-34,560) from roots 32,400 / 32,200 / 32,550: all solved in 14-19
+  min to x ~34,500 and replay alive from the level start.
+  `configs/demos/bb_start_35k_4tick.npy` (root 32,400), demo starts
+  15,000-34,300, demo_bc -> `runs/bc17-gd-bb-community` (greedy from the
+  level start x 34,908, ~88.7%, 3/3; watch preset `bb_89`); anchor = bc17.
