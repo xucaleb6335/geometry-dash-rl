@@ -59,6 +59,7 @@
   if (SPEED_STEPS.includes(+Q.get("speed"))) S.speed = +Q.get("speed");
   const AUTOPLAY = Q.has("autoplay") ? Math.max(0, +Q.get("autoplay") || 0) : null; // seconds after load
   const NO_SAVE = ["overlays", "zoom", "edges", "speed", "autoplay"].some(k => Q.has(k));
+  if (Q.get("bare") === "1") document.documentElement.classList.add("bare"); // no article below (embeds, recordings)
   const savePrefs = () => {
     if (NO_SAVE) return; // a URL with overrides never rewrites the viewer's saved settings
     try { localStorage.setItem(PREF_KEY, JSON.stringify({ speed: S.speed, edgeMode: S.edgeMode, tg: S.tg, zoom: S.zoom, trace: S.name })); } catch (e) { }

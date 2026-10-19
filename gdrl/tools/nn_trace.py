@@ -695,7 +695,7 @@ def record_game(name: str, level: str, config: str, checkpoint: str, start_pos: 
             env.close()
     finally:
         stop.set()
-        for key in ("watch-mode", "legacy-view"):
+        for key in ("watch-mode", "legacy-view", "show-hitboxes"):
             gdctl("mod-setting", key, "off")
         gdctl("lock", "release")
     end = states[-1]

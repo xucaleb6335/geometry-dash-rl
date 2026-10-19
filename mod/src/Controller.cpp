@@ -1,5 +1,6 @@
 #include "Controller.hpp"
 
+#include "Overlay.hpp"
 #include "StateReader.hpp"
 
 #include <Geode/Geode.hpp>
@@ -118,7 +119,9 @@ void Controller::onLevelReset() {
 }
 
 void Controller::onTick(GJBaseGameLayer* layer) {
-    if (layer == m_layer) ++m_ticksSeen;
+    if (layer != m_layer) return;
+    ++m_ticksSeen;
+    Overlay::get().onTick(m_layer, m_holding);  // the path (setting show-hitboxes)
 }
 
 void Controller::onDeath() {

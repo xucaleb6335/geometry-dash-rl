@@ -504,8 +504,9 @@ def prepare_training(spec: str, practice: bool = False, reopen: bool = False, pr
     steps.append({"close_popups": ctl("close_popups").get("closed")})
     steps.append({"prevent_pause": ctl("prevent_pause", {"enabled": True})["prevent_pause"]})
     # Training wants the bridge's normal view at full speed: undo a watch
-    # session (gdrl.tools.watch) that left watch-mode / legacy-view on.
-    for key in ("watch-mode", "legacy-view"):
+    # session (gdrl.tools.watch) that left watch-mode / legacy-view /
+    # show-hitboxes on.
+    for key in ("watch-mode", "legacy-view", "show-hitboxes"):
         try:
             ctl("set_mod_setting", {"mod": "xucaleb6335.gd-rl-bridge", "key": key, "value": False})
         except (ControlError, GdctlError) as e:

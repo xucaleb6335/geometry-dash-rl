@@ -9,9 +9,11 @@ Policies are listed in configs/watch.yaml. Steps: take the gdctl game lock,
 open the level (prepare-training; launches GD if needed, re-downloads saved
 levels), turn on the bridge's watch-mode (one STEP per rendered frame, so 60
 decisions/s render as 60 smooth frames) and, if the policy needs it,
-legacy-view, then play greedy episodes paced at `speed` x real time. Both
-settings are turned off and the lock released at the end. GD is restored
-whenever it gets minimized (a minimized GD runs no frames).
+legacy-view, then play greedy episodes paced at `speed` x real time. With
+--hitboxes the bridge also draws the agent's view in the level (show-hitboxes:
+the reported hitboxes, the encoder's 8 slots, the player's path coloured by
+the button). The settings are turned off and the lock released at the end.
+GD is restored whenever it gets minimized (a minimized GD runs no frames).
 """
 
 from __future__ import annotations
@@ -115,7 +117,7 @@ def play(preset: dict, attempts: int, speed: float, log=print) -> list[dict]:
 
 
 def watch(name: str, attempts: int = 1, speed: float = 1.0, presets_path: Path = Path("configs/watch.yaml"),
-          log=print) -> list[dict]:
+          log=print, hitboxes: bool = False) -> list[dict]:
     presets = load_presets(presets_path)
     if name not in presets:
         raise SystemExit(f"unknown policy {name!r}; known: {', '.join(presets)}")
@@ -138,6 +140,8 @@ def watch(name: str, attempts: int = 1, speed: float = 1.0, presets_path: Path =
         must(gdctl("prepare-training", "--level", level), "prepare-training")
         must(gdctl("mod-setting", "legacy-view", "on" if preset.get("legacy_view") else "off"), "legacy-view")
         must(gdctl("mod-setting", "watch-mode", "on" if speed > 0 else "off"), "watch-mode")
+        if hitboxes:
+            must(gdctl("mod-setting", "show-hitboxes", "on"), "show-hitboxes")
         gdctl("unminimize")
         gdctl("focus")
         log(f"playing {preset.get('name', name)} ({preset['checkpoint']}) at "
@@ -145,7 +149,7 @@ def watch(name: str, attempts: int = 1, speed: float = 1.0, presets_path: Path =
         return play(preset, attempts, speed, log)
     finally:
         stop.set()
-        for key in ("watch-mode", "legacy-view"):
+        for key in ("watch-mode", "legacy-view", "show-hitboxes"):
             gdctl("mod-setting", key, "off")
         gdctl("lock", "release")
 
@@ -156,13 +160,15 @@ def main(argv: list[str] | None = None) -> None:
     ap.add_argument("--attempts", type=int, default=1)
     ap.add_argument("--speed", type=float, default=1.0, help="1 = real time; 0 = as fast as possible")
     ap.add_argument("--presets", type=Path, default=Path("configs/watch.yaml"))
+    ap.add_argument("--hitboxes", action="store_true",
+                    help="draw the agent's view in the level (hitboxes, encoder slots, path)")
     ap.add_argument("--list", action="store_true")
     a = ap.parse_args(argv)
     if a.list or not a.name:
         for k, v in load_presets(a.presets).items():
             print(f"{k:6s} {v.get('name', '')}  [{v['level']}]  {v['checkpoint']}")
         return
-    watch(a.name, a.attempts, a.speed, a.presets)
+    watch(a.name, a.attempts, a.speed, a.presets, hitboxes=a.hitboxes)
 
 
 if __name__ == "__main__":

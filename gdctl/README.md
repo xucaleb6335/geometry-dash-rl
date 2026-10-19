@@ -158,7 +158,8 @@ input (SendInput) after focusing GD. Last resort when the mod is down.
 **prepare-training** `--level SPEC [--practice] [--reopen] [--no-probe]`:
 game up (launch, or restart if unresponsive for 20 s), CBF + QOLMod off and
 both of our mods on (restarting if needed), popups closed, `prevent_pause` on,
-level open in normal mode, bridge port owned by GD, then a HELLO/RESET/BYE
+level open in normal mode, bridge port owned by GD, the bridge's watch-only
+settings off (watch-mode, legacy-view, show-hitboxes), then a HELLO/RESET/BYE
 probe on 5555. Then start the RL client.
 ```json
 {"ok": true, "level": {"id": 1, "name": "Stereo Madness", "type": "main", "practice": false, "paused": false},

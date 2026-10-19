@@ -691,3 +691,31 @@ powershell -ExecutionPolicy Bypass -File .\overnight.ps1 -Level saved:141625101 
   blue = +1; so Jump, a positive logit gap, is blue). The game panel keeps its
   drawing, flattened (no glows or gradients). One-view URL overrides, never
   saved over the viewer's settings: `?trace=sm&overlays=all&zoom=1&edges=path&speed=1&autoplay=2`.
+
+## Agent-view overlay, README videos (2026-10-19)
+
+- Bridge mod v0.2.1: runtime setting `show-hitboxes` (`mod/src/Overlay.*`,
+  `gdctl mod-setting show-hitboxes on|off`, `python -m gdrl.tools.watch sm
+  --hitboxes`). Draws in the level what the agent sees: the hitboxes
+  `readState` reports, the encoder's 8 slots (numbered; mirrors
+  ObjectListEncoder with k 8, 600 x +-300, obstacles first), the player's
+  hitbox and its last 5 s of path, blue while the button is held and orange
+  while released. Read-only; prepare-training, watch, nn_trace and the
+  dashboard's Stop turn it off. No protocol change.
+- Screen capture cannot see GD on this machine: it runs exclusive full-screen
+  on the HDMI monitor (NVIDIA), so GDI returns a stale frame and Desktop
+  Duplication and Windows Graphics Capture return nothing. Video A was made
+  from frames the game renders itself: the greedy policy stepped in lockstep
+  with watch-mode on, and every 2nd decision the control mod's `screenshot`
+  rendered the scene to a JPEG (exact 30 fps of game time). Video B is the
+  visualizer (`?trace=sm&overlays=all&zoom=1&edges=path&bare=1&autoplay=6`) in
+  its own Chrome app window, captured with ffmpeg `gfxcapture` and trimmed to
+  the first moving frame. Both are 2,603 frames, 86.8 s, and line up.
+- `docs/media/`: `stereo-madness-agent-view.mp4` (8.7 MB, 1280x720),
+  `stereo-madness-network.mp4` (9.1 MB, 1600x874), a GIF preview and posters.
+  ffmpeg 9.0.2 is installed for the user (winget Gyan.FFmpeg).
+- README rewritten: results, how it works, how the network decides, quick
+  start, layout, caveats; Video A at the top, Video B at the bottom. GitHub
+  plays a video inline only from an uploaded attachment
+  (github.com/user-attachments/...): drag each MP4 into the README editor on
+  github.com and replace the marked block with the URL it inserts.

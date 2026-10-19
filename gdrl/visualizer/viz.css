@@ -51,7 +51,7 @@ button:focus-visible,select:focus-visible,input:focus-visible{outline:2px solid 
 
 /* columns */
 #main{padding-top:22px;padding-bottom:10px}
-#stage{display:grid;gap:28px;grid-template-columns:minmax(330px,1fr) minmax(560px,1.7fr) 300px;height:clamp(470px,calc(100vh - 330px),820px)}
+#stage{display:grid;gap:28px;grid-template-columns:minmax(330px,1fr) minmax(560px,1.7fr) 300px;height:clamp(440px,calc(100vh - 395px),820px)}
 .col{min-width:0;display:flex;flex-direction:column}
 .colhead{display:flex;align-items:baseline;gap:12px;flex-wrap:wrap}
 .colhead h4{margin:0;font-size:16px;font-weight:400;text-transform:uppercase;color:var(--text);padding-bottom:6px}
@@ -127,6 +127,9 @@ canvas{display:block}
 .art .meta{font-size:13px;color:var(--label);margin-top:22px;display:flex;flex-wrap:wrap;gap:4px 16px}
 .art .meta b{font-weight:400;color:var(--text)}
 .art .credit{font-size:13px;color:var(--label)}
+
+html.bare #explain{display:none}
+html.bare,html.bare body{overflow:hidden}
 
 /* tooltip, dialog, loading */
 #tip{position:fixed;z-index:100;pointer-events:none;opacity:0;background:#fff;border:1px solid var(--line2);padding:7px 9px;font-size:12px;box-shadow:0 2px 6px rgba(0,0,0,.15);max-width:340px;line-height:1.4;color:var(--text)}

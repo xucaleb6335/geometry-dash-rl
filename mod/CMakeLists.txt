@@ -12,6 +12,7 @@ add_library(${PROJECT_NAME} SHARED
     src/main.cpp
     src/Controller.cpp
     src/StateReader.cpp
+    src/Overlay.cpp
     src/Bridge.cpp
 )
 

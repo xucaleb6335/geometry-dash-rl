@@ -11,6 +11,7 @@
 #include <Geode/modify/PlayLayer.hpp>
 
 #include "Controller.hpp"
+#include "Overlay.hpp"
 
 using namespace geode::prelude;
 
@@ -19,6 +20,7 @@ class $modify(RLPlayLayer, PlayLayer) {
         if (!PlayLayer::init(level, useReplay, dontCreateObjects)) return false;
         log::info("Level Opened: {}", level->m_levelName);
         gdrl::Controller::get().onLevelStart(this);
+        gdrl::Overlay::get().onLevelStart(this);
         return true;
     }
 
@@ -42,6 +44,7 @@ class $modify(RLPlayLayer, PlayLayer) {
     void resetLevel() {
         PlayLayer::resetLevel();
         gdrl::Controller::get().onLevelReset();
+        gdrl::Overlay::get().onReset();
     }
 
     // GD pauses when its window loses focus (e.g. clicking the terminal that
@@ -77,6 +80,7 @@ class $modify(RLPlayLayer, PlayLayer) {
 
     void onQuit() {
         gdrl::Controller::get().onLevelExit();
+        gdrl::Overlay::get().onLevelExit();
         PlayLayer::onQuit();
     }
 };
@@ -88,11 +92,10 @@ class $modify(RLBaseGameLayer, GJBaseGameLayer) {
     // through runOneTick. No STEP, no ticks.
     void update(float dt) {
         auto& controller = gdrl::Controller::get();
-        if (!controller.isAgentControlling(this)) {
-            GJBaseGameLayer::update(dt);
-            return;
-        }
-        controller.onFrame(this, [this] { runOneTick(); });
+        if (!controller.isAgentControlling(this)) GJBaseGameLayer::update(dt);
+        else controller.onFrame(this, [this] { runOneTick(); });
+        // Setting show-hitboxes: redraw the agent's view for this frame.
+        if (auto* level = typeinfo_cast<PlayLayer*>(this)) gdrl::Overlay::get().onFrame(level);
     }
 
     // Exactly one physics tick: feed the game one tick's worth of time with an

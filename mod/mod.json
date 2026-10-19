@@ -5,7 +5,7 @@
 	},
 	"id": "xucaleb6335.gd-rl-bridge",
 	"name": "GD-RL Bridge",
-	"version": "v0.2.0",
+	"version": "v0.2.1",
 	"developer": "xucaleb6335",
 	"description": "Exposes Geometry Dash as a lockstep reinforcement-learning environment over localhost TCP.",
 	"settings": {
@@ -28,6 +28,12 @@
 		"legacy-view": {
 			"name": "Legacy object view",
 			"description": "Send objects the way the bridge did before 2026-10-13 (no block merging, no No-Touch/speed-portal handling, +-20 blocks vertically). For replaying policies trained then (Stereo Madness).",
+			"type": "bool",
+			"default": false
+		},
+		"show-hitboxes": {
+			"name": "Show the agent's view",
+			"description": "Draw in the level what the agent sees: the hitboxes the bridge reports, the 8 objects its encoder looks at (numbered), its field of view, and the player's recent path (blue while the agent holds the button, orange while released). For watching and recording; leave off for training.",
 			"type": "bool",
 			"default": false
 		},

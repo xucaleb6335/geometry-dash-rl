@@ -119,7 +119,7 @@ class Watcher:
         # The killed job could not clean up: bridge settings back to training
         # defaults and release its game lock.
         env_py = [sys.executable, "-m", "gdctl"]
-        for key in ("watch-mode", "legacy-view"):
+        for key in ("watch-mode", "legacy-view", "show-hitboxes"):
             subprocess.run(env_py + ["--owner", "watch", "mod-setting", key, "off"], cwd=self.root,
                            capture_output=True, timeout=60)
         subprocess.run(env_py + ["--owner", "watch", "lock", "release"], cwd=self.root, capture_output=True, timeout=60)
