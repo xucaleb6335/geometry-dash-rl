@@ -63,35 +63,9 @@ means the policy always takes its more likely action.
 
 ## How it works
 
-```mermaid
-flowchart TB
-    subgraph game["Geometry Dash 2.2081 + Geode mods (C++)"]
-        hooks["Hooks<br/>tick, death, completion"]
-        ctrl["Controller + StateReader<br/>lockstep loop, state, save / load"]
-        bridge["Bridge<br/>TCP 127.0.0.1:5555"]
-        control["Control mod<br/>TCP 5556: menus, levels, settings"]
-        hooks --> ctrl --> bridge
-    end
-    subgraph env["Environment (gdrl.env, features, rewards, curriculum)"]
-        client["GDClient<br/>socket or in-process mock"]
-        encoder["Encoder<br/>raw state to 234 numbers"]
-        reward["Reward<br/>progress"]
-        gdenv["GDEnv (Gymnasium API)"]
-        client --> gdenv
-        encoder --> gdenv
-        reward --> gdenv
-    end
-    subgraph brain["Agent (gdrl.agents, gdrl.search)"]
-        ppo["PPO<br/>actor and critic MLPs"]
-        search["Checkpoint search<br/>and behaviour cloning"]
-        loop["train.py, evaluate.py"]
-        ppo --> loop
-        search --> loop
-    end
-    gdctl["gdctl CLI"] --> control
-    bridge <-- "protocol/PROTOCOL.md" --> client
-    gdenv <-- "obs, reward, done / action" --> loop
-```
+<p align="center">
+  <img src="docs/media/architecture.png" width="900" alt="Hand-drawn diagram: Geometry Dash with the bridge mod exchanges state and STEP commands with the Python environment, which feeds 234 numbers to the policy network and gets jump/release back; PPO training updates the network; checkpoint search finds routes that behaviour cloning copies into the network">
+</p>
 
 - **Lockstep game.** The bridge mod stops the game clock. Each STEP from
   Python runs an exact number of physics ticks and replies with the state, so
