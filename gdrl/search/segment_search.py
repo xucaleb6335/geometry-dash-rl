@@ -264,7 +264,9 @@ class SegmentSearch:
         (the surviving plan keeps its own granularity)."""
         L = self.seg_ticks + self.look_ticks
         out: list[np.ndarray] = []
-        plan = node.plan
+        # A plan cut at a death tick can end mid-block; trim it so the random tail
+        # stays on dt boundaries (otherwise solutions get mixed dt-tick blocks).
+        plan = node.plan[: len(node.plan) // dt * dt]
         if len(plan):
             rest = max(0, L - len(plan))
             base = np.concatenate([plan, self._random_ticks(rest, bool(plan[-1]), dt)])[:L]
