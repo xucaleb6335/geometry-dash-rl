@@ -1,0 +1,73 @@
+level: saved:147032152
+original: saved:146399247
+source: 'community copy ''rauchkammer startpos'' by 2dependent (online id 147032152, 7k downloads);
+  offline diff vs the original 146399247: every non-StartPos object present at the same id and position
+  (rotations differ by <0.1 degree, re-save rounding), plus 6 id-1755 objects at x 13,815-13,875 and 15
+  StartPos (the original holds 5 StartPos of its own, not used). Spawns checked in game with RESET start_pos k,
+  2026-10-18. The most downloaded copy (mat0tas, 146683938) differs in ~8,000 object properties; KeksCool''s
+  (146852246) lacks the yellow pad at x 5,325.'
+starts:
+- name: start
+  start_pos: -2
+  x: 0.0
+  mode: 0
+- name: sp00
+  start_pos: 0
+  x: 1515.0
+  mode: 0
+- name: sp01
+  start_pos: 1
+  x: 2265.0
+  mode: 0
+- name: sp02
+  start_pos: 2
+  x: 3195.0
+  mode: 3
+- name: sp03
+  start_pos: 3
+  x: 4305.0
+  mode: 3
+- name: sp04
+  start_pos: 4
+  x: 5023.0
+  mode: 3
+- name: sp05
+  start_pos: 5
+  x: 6075.0
+  mode: 0
+- name: sp06
+  start_pos: 6
+  x: 6645.0
+  mode: 3
+- name: sp07
+  start_pos: 7
+  x: 7941.0
+  mode: 1
+- name: sp08
+  start_pos: 8
+  x: 9255.0
+  mode: 1
+- name: sp09
+  start_pos: 9
+  x: 10223.0
+  mode: 4
+- name: sp10
+  start_pos: 10
+  x: 10525.0
+  mode: 4
+- name: sp11
+  start_pos: 11
+  x: 10943.0
+  mode: 4
+- name: sp12
+  start_pos: 12
+  x: 11337.0
+  mode: 4
+- name: sp13
+  start_pos: 13
+  x: 12567.0
+  mode: 4
+- name: sp14
+  start_pos: 14
+  x: 13815.0
+  mode: 4

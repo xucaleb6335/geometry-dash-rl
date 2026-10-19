@@ -589,3 +589,22 @@ powershell -ExecutionPolicy Bypass -File .\overnight.ps1 -Level saved:141625101 
   `gdctl download-level 10565740` if GD was restarted). Caveat: this is PPO
   plus 20 search segments cloned into the policy, not PPO alone; with sticky
   actions it would not complete. Next level: Rauchkammer.
+
+## Rauchkammer (2026-10-18 18:20)
+
+- Community copy: 'rauchkammer startpos' by 2dependent (147032152): every
+  object of the original 146399247 at the same id and position (rotations
+  differ by < 0.1 degree, re-save rounding), plus 15 StartPos and 6 id-1755
+  objects near x 13,815. The most downloaded copy (mat0tas, 146683938) differs
+  in ~8,000 object properties; KeksCool's lacks a yellow pad. The original has
+  no random triggers (ids 1912/2068), but ~275 move triggers (901): check
+  save/load exactness before relying on the search. Level length 14,635;
+  modes cube/ship/wave/UFO, mini at 10,950 and 13,845.
+- `configs/starts/rk_community.yaml` (spawns checked with RESET start_pos k),
+  `configs/gd_rk_community.yaml` (the Bloodbath setup, no demos, no anchor
+  data), initialised from the Bloodbath policy (`runs/init-gd-rk-community`).
+  `PPOAgent.add_bc` now starts an anchor when there is none, so the eval
+  ratchet works from scratch.
+  ```powershell
+  powershell -ExecutionPolicy Bypass -File .\overnight.ps1 -Level saved:147032152 -Config configs/gd_rk_community.yaml -RunFilter "*gd-rk-community*"
+  ```

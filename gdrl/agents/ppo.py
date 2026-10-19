@@ -138,9 +138,13 @@ class PPOAgent(Agent):
         self._sync_actor()
 
     def add_bc(self, X: np.ndarray, Y: np.ndarray, W: np.ndarray) -> None:
-        """Append (obs, action, weight) pairs to the BC anchor (train.eval_ratchet)."""
+        """Append (obs, action, weight) pairs to the BC anchor (train.eval_ratchet).
+
+        With no anchor yet (no ``bc_data``), the pairs start one, if ``bc_coef > 0``."""
         if self._bc is None:
-            return
+            if self.cfg.bc_coef <= 0:
+                return
+            self._bc = (self._tensor(X[:0]), torch.zeros(0, dtype=torch.int64, device=self.device), self._tensor(W[:0]))
         bx, by, bw = self._bc
         self._bc = (torch.cat([bx, self._tensor(X)]),
                     torch.cat([by, torch.as_tensor(Y, dtype=torch.int64, device=self.device)]),
