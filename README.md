@@ -7,7 +7,7 @@ hand-written PPO in PyTorch learns to play it.
 This repo is a learning project. The plumbing (sockets, framing, the mock game,
 the train loop, logging) is done. The parts worth learning are left as
 `LEARN(Mx)` stubs with docstrings, hints and tests that turn green when you
-finish them. **[LEARNING.md](LEARNING.md) is the map.**
+finish them. See [PROJECT_SUMMARY.md](PROJECT_SUMMARY.md) for results.
 
 ## Architecture
 

@@ -38,3 +38,13 @@ Thumbs.db
 # network visualizer: the standalone pages are rebuilt from the traces
 # (python -m gdrl.tools.nn_trace export results/viz/<name>.trace.json.gz)
 results/viz/*.html
+
+# notes and reports not needed to recreate the bot (kept locally, not on GitHub)
+LEARNING.md
+PROGRESS.md
+DEMON_PLAN.md
+AGENTS.md
+CLAUDE.md
+progress_reports/
+results/m8_mock.md
+holistic_progress/*.md
