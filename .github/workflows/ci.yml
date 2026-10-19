@@ -18,7 +18,7 @@ jobs:
           python -m pip install --upgrade pip
           pip install torch==2.14.1 --index-url https://download.pytorch.org/whl/cpu
           pip install -e ".[dev]"
-      - name: Run tests (learn stubs report as skipped)
+      - name: Run tests
         run: pytest -rs
 
   bridge-tools:
