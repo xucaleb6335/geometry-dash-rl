@@ -27,6 +27,7 @@
   const ST = { BLOCK: 1, SLOPE: 2, SPIKE: 3, SAW: 4 };
   const FL = { DEAD: 1, COMPLETED: 2, ON_GROUND: 4, UPSIDE_DOWN: 8, HOLDING: 16, MINI: 32, DUAL: 64 };
   const KIND_COLOR = { solid: "#7f93d8", hazard: "#ff3b5c", orb: "#ffd400", pad: "#ff4fd8", portal: "#2fc6ff", other: "#9a9bc4" };
+  const KIND_KEY = { solid: "#6a7bb8", hazard: "#d62f4f", orb: "#c9a400", pad: "#c63aa8", portal: "#2b8fc4", other: "#999" }; // the same, on white
   const ORB_COLOR = { 10: "#ffd400", 11: "#ff4fd8", 12: "#2f8bff", 13: "#3dff7a", 14: "#30303a", 15: "#ff3b5c", 16: "#3dff7a", 17: "#ff4fd8", 18: "#b04dff", 19: "#00e5ff", 20: "#cfcfe8" };
   const PAD_COLOR = { 30: "#ffd400", 31: "#ff4fd8", 32: "#2f8bff", 33: "#ff3b5c", 34: "#b04dff" };
   const DPS = 60; // decisions per second at 1x (240 ticks/s, 4 ticks per decision)
@@ -49,7 +50,19 @@
     if (p.zoom > 0.4 && p.zoom < 3) S.zoom = p.zoom;
     S.lastTrace = p.trace;
   } catch (e) { /* storage blocked: defaults */ }
-  const savePrefs = () => { try { localStorage.setItem(PREF_KEY, JSON.stringify({ speed: S.speed, edgeMode: S.edgeMode, tg: S.tg, zoom: S.zoom, trace: S.name })); } catch (e) { } };
+  // One-view overrides from the URL (for links and recordings), e.g.
+  // ?trace=sm&overlays=all&zoom=1&edges=path&speed=1&autoplay=2
+  const Q = new URLSearchParams(location.search);
+  if (Q.has("overlays")) { const v = Q.get("overlays"); for (const k of Object.keys(S.tg)) S.tg[k] = v === "all" || v.split(",").includes(k); }
+  if (+Q.get("zoom") > 0.4 && +Q.get("zoom") < 3) S.zoom = +Q.get("zoom");
+  if (Q.get("edges") === "path" || Q.get("edges") === "top") S.edgeMode = Q.get("edges");
+  if (SPEED_STEPS.includes(+Q.get("speed"))) S.speed = +Q.get("speed");
+  const AUTOPLAY = Q.has("autoplay") ? Math.max(0, +Q.get("autoplay") || 0) : null; // seconds after load
+  const NO_SAVE = ["overlays", "zoom", "edges", "speed", "autoplay"].some(k => Q.has(k));
+  const savePrefs = () => {
+    if (NO_SAVE) return; // a URL with overrides never rewrites the viewer's saved settings
+    try { localStorage.setItem(PREF_KEY, JSON.stringify({ speed: S.speed, edgeMode: S.edgeMode, tg: S.tg, zoom: S.zoom, trace: S.name })); } catch (e) { }
+  };
 
   /* ================================================================ theme */
   let TH = {};
@@ -61,43 +74,26 @@
     return [(n >> 16) & 255, (n >> 8) & 255, n & 255];
   }
   const rgba = (c, a) => `rgba(${c[0]},${c[1]},${c[2]},${a})`;
-  function currentTheme() {
-    let t = null;
-    try { t = (JSON.parse(localStorage.getItem("gdrl-ui") || "{}")).theme; } catch (e) { }
-    return t === "light" ? "light" : "dark";
-  }
-  function applyTheme(t) {
-    document.documentElement.dataset.theme = t;
-    $("#btn-theme").textContent = t === "light" ? "Dark" : "Light";
+  // Colours come from viz.css: TensorFlow Playground's scale (orange -1, grey 0, blue +1).
+  function readTheme() {
     const cs = getComputedStyle(document.documentElement);
     const v = n => cs.getPropertyValue(n).trim();
     TH = {
-      dark: t !== "light", text: v("--text"), mute: v("--mute"), dim: v("--dim"), line: v("--line"), line2: v("--line2"),
-      panel: v("--panel"), cyan: v("--cyan"), neg: hexRgb(v("--neg")), mid: hexRgb(v("--mid")), pos: hexRgb(v("--pos")), val: v("--val"),
-      font: getComputedStyle(document.body).fontFamily,
+      text: v("--text"), ink: v("--ink"), label: v("--label"), dim: v("--dim"), line: v("--line"), line2: v("--line2"),
+      soft: v("--soft"), head: v("--head"), neg: hexRgb(v("--neg")), mid: hexRgb(v("--mid")), pos: hexRgb(v("--pos")),
+      val: v("--val"), font: getComputedStyle(document.body).fontFamily,
     };
-    TH.modes = TH.dark ? MODE_DARK : MODE_LIGHT;
+    TH.modes = MODE_LIGHT;      // marks on the light page (run chart)
+    TH.sceneModes = MODE_DARK;  // the player and portals in the dark game panel
+    // Linear in RGB between the three stops, as the Playground's d3.scale.linear does.
     TH.lut = [];
     for (let i = 0; i <= 256; i++) {
-      const x = i / 128 - 1, t2 = Math.pow(Math.abs(x), 0.8), pole = x < 0 ? TH.neg : TH.pos;
+      const x = i / 128 - 1, t2 = Math.abs(x), pole = x < 0 ? TH.neg : TH.pos;
       TH.lut.push(`rgb(${Math.round(lerp(TH.mid[0], pole[0], t2))},${Math.round(lerp(TH.mid[1], pole[1], t2))},${Math.round(lerp(TH.mid[2], pole[2], t2))})`);
     }
-    TH.glowPos = glowSprite(TH.pos); TH.glowNeg = glowSprite(TH.neg);
     S.dirty = true;
-    if (S.T) { layoutAll(); }
   }
   const divColor = v => TH.lut[Math.round((clamp(v, -1, 1) + 1) * 128)];
-  const GLOW = new Map();
-  function glowSprite(c) {
-    const key = c.join(",");
-    if (GLOW.has(key)) return GLOW.get(key);
-    const cv = document.createElement("canvas"); cv.width = cv.height = 64;
-    GLOW.set(key, cv);
-    const g = cv.getContext("2d"), gr = g.createRadialGradient(32, 32, 0, 32, 32, 32);
-    gr.addColorStop(0, rgba(c, 0.85)); gr.addColorStop(0.35, rgba(c, 0.35)); gr.addColorStop(1, rgba(c, 0));
-    g.fillStyle = gr; g.fillRect(0, 0, 64, 64);
-    return cv;
-  }
 
   /* ================================================================ data */
   function b64Bytes(b64) {
@@ -433,29 +429,24 @@
     sceneCamera(T, ff);
     const f = SC.f0, s = SC.s;
     const x0 = SC.camX - SC.ox / s - 40, x1 = SC.camX + (w - SC.ox) / s + 40;
-    // background
-    const bg = ctx.createLinearGradient(0, 0, 0, h);
-    bg.addColorStop(0, "#0b0b24"); bg.addColorStop(1, "#151036");
-    ctx.fillStyle = bg; ctx.fillRect(0, 0, w, h);
+    // background (flat)
+    ctx.fillStyle = "#14182e"; ctx.fillRect(0, 0, w, h);
     // block grid + x ruler
     if (30 * s >= 7) {
-      ctx.strokeStyle = "rgba(140,150,255,0.055)"; ctx.lineWidth = 1; ctx.beginPath();
+      ctx.strokeStyle = "rgba(255,255,255,0.045)"; ctx.lineWidth = 1; ctx.beginPath();
       for (let gx = Math.floor(x0 / 30) * 30; gx <= x1; gx += 30) { const X = Math.round(wx(gx)) + 0.5; ctx.moveTo(X, 0); ctx.lineTo(X, h); }
       const yTop = SC.camY + SC.oy / s, yBot = SC.camY - (h - SC.oy) / s;
       for (let gy = Math.floor(yBot / 30) * 30; gy <= yTop; gy += 30) { const Y = Math.round(wy(gy)) + 0.5; ctx.moveTo(0, Y); ctx.lineTo(w, Y); }
       ctx.stroke();
     }
     ctx.font = "10px " + TH.font;
-    ctx.fillStyle = "rgba(170,175,230,0.38)"; ctx.textAlign = "left";
+    ctx.fillStyle = "rgba(255,255,255,0.4)"; ctx.textAlign = "left";
     for (let gx = Math.ceil(x0 / 300) * 300; gx <= x1; gx += 300) { const X = wx(gx); ctx.fillRect(X, h - 6, 1, 6); ctx.fillText("x " + fmtInt(gx), X + 3, h - 3); }
-    // ground
+    // ground (flat band, one line)
     const gy = wy(0);
     if (gy < h) {
-      const gg = ctx.createLinearGradient(0, gy, 0, h);
-      gg.addColorStop(0, "#1f2a6b"); gg.addColorStop(1, "#0d1030");
-      ctx.fillStyle = gg; ctx.fillRect(0, gy, w, h - gy);
-      ctx.fillStyle = "rgba(120,200,255,0.85)"; ctx.fillRect(0, gy - 1, w, 2);
-      ctx.fillStyle = "rgba(120,200,255,0.12)"; ctx.fillRect(0, gy - 5, w, 4);
+      ctx.fillStyle = "#1d2244"; ctx.fillRect(0, gy, w, h - gy);
+      ctx.fillStyle = "#8fa3e0"; ctx.fillRect(0, gy - 1, w, 1.5);
     }
     // what the bridge reported this frame
     const O = T.O, v0 = T.viewPtr[f], v1 = T.viewPtr[f + 1];
@@ -483,10 +474,10 @@
     drawTrail(ctx, T, ff);
     const mode = T.mode[f], fl = T.flags[f];
     const size = T.size[f] > 0 ? T.size[f] : 30;
-    drawPlayer(ctx, wx(SC.px), wy(SC.py), size * s, mode, T.rot[f], T.vy[f], T.xs[f], (fl & FL.UPSIDE_DOWN) !== 0, TH.modes[mode] || "#fff", T.act[f] === 1);
+    drawPlayer(ctx, wx(SC.px), wy(SC.py), size * s, mode, T.rot[f], T.vy[f], T.xs[f], (fl & FL.UPSIDE_DOWN) !== 0, TH.sceneModes[mode] || "#fff", T.act[f] === 1);
     if (fl & FL.DUAL) {
       const m2 = T.p2mode[f];
-      drawPlayer(ctx, wx(T.p2x[f]), wy(T.p2y[f]), (T.p2flags[f] & FL.MINI ? 18 : 30) * s, m2, T.rot[f], 0, T.xs[f], (T.p2flags[f] & FL.UPSIDE_DOWN) !== 0, TH.modes[m2] || "#fff", T.act[f] === 1, true);
+      drawPlayer(ctx, wx(T.p2x[f]), wy(T.p2y[f]), (T.p2flags[f] & FL.MINI ? 18 : 30) * s, m2, T.rot[f], 0, T.xs[f], (T.p2flags[f] & FL.UPSIDE_DOWN) !== 0, TH.sceneModes[m2] || "#fff", T.act[f] === 1, true);
     }
     SC.vis = vis; SC.ghosts = ghosts;
   }
@@ -512,13 +503,11 @@
     // solids: outline pass then fill pass, so merged / overlapping blocks read as one shape
     const sol = list.filter(i => O.kind[i] === K.SOLID);
     if (sol.length) {
-      ctx.fillStyle = ghost ? "#4b5aa0" : "#6f86e6";
+      ctx.fillStyle = ghost ? "#4b5aa0" : "#7f93d8";
       ctx.beginPath();
       for (const i of sol) ctx.rect(wx(O.x[i] - O.w[i] / 2) - 1, wy(O.y[i] + O.h[i] / 2) - 1, O.w[i] * s + 2, O.h[i] * s + 2);
       ctx.fill();
-      const fill = ctx.createLinearGradient(0, 0, 0, CV.scene.h);
-      fill.addColorStop(0, "#1c2356"); fill.addColorStop(1, "#141a44");
-      ctx.fillStyle = fill;
+      ctx.fillStyle = "#242a52";
       ctx.beginPath();
       for (const i of sol) ctx.rect(wx(O.x[i] - O.w[i] / 2), wy(O.y[i] + O.h[i] / 2), O.w[i] * s, O.h[i] * s);
       ctx.fill();
@@ -581,7 +570,7 @@
       return;
     }
     let c = "#2fc6ff";
-    if (st >= 40 && st <= 47) c = TH.modes[st - 40];
+    if (st >= 40 && st <= 47) c = TH.sceneModes[st - 40];
     else if (st === 50) c = "#2f8bff"; else if (st === 51) c = "#ffd400"; else if (st === 52) c = "#3dff7a";
     else if (st === 53) c = "#ff4fd8"; else if (st === 54) c = "#3dff7a"; else if (st === 55) c = "#ffa630";
     ctx.strokeStyle = c; ctx.lineWidth = 2.5; ctx.beginPath(); ctx.ellipse(X, Y, Math.max(W / 2, 5), Math.max(H / 2, 20), 0, 0, Math.PI * 2); ctx.stroke();
@@ -593,7 +582,7 @@
     for (const m of T.marks) {
       if (m.x < x0 || m.x > x1) continue;
       let c = "#cfd3f0";
-      if (m.kind === "mode") c = TH.modes[m.mode] || c; else if (m.kind === "gravity") c = m.flipped ? "#ffd400" : "#2f8bff";
+      if (m.kind === "mode") c = TH.sceneModes[m.mode] || c; else if (m.kind === "gravity") c = m.flipped ? "#ffd400" : "#2f8bff";
       else if (m.kind === "size") c = m.mini ? "#ff4fd8" : "#3dff7a"; else if (m.kind === "dual") c = "#ffa630";
       const X = wx(m.x - 4), Y = wy(m.y), hh = Math.max(34, 90 * s) / 2, ww = Math.max(5, 12 * s) / 2;
       const passed = m.f <= f;
@@ -678,7 +667,7 @@
     const wave = T.mode[f] === 4;
     for (let q = a + 1; q <= f; q++) {
       const t = (q - a) / (f - a);
-      ctx.strokeStyle = rgba(hexRgb(TH.modes[T.mode[q]] || "#ffffff"), (wave ? 0.85 : 0.5) * t);
+      ctx.strokeStyle = rgba(hexRgb(TH.sceneModes[T.mode[q]] || "#ffffff"), (wave ? 0.85 : 0.5) * t);
       ctx.lineWidth = (wave ? 4.5 : 2.2) * (0.35 + 0.65 * t);
       ctx.beginPath(); ctx.moveTo(wx(T.x[q - 1]), wy(T.y[q - 1])); ctx.lineTo(wx(q === f ? SC.px : T.x[q]), wy(q === f ? SC.py : T.y[q])); ctx.stroke();
     }
@@ -688,7 +677,6 @@
     const s = Math.max(9, size);
     ctx.save();
     ctx.translate(X, Y);
-    if (!second) { ctx.globalAlpha = 0.5; const g = TH.glowPos; ctx.drawImage(held ? g : glowSprite(hexRgb(color)), -s * 1.4, -s * 1.4, s * 2.8, s * 2.8); ctx.globalAlpha = 1; }
     if (second) ctx.globalAlpha = 0.75;
     const dark = "#0b0b1a";
     ctx.lineWidth = Math.max(1.5, s * 0.08); ctx.strokeStyle = dark; ctx.fillStyle = color;
@@ -719,8 +707,8 @@
       ctx.beginPath(); ctx.moveTo(ws * 0.6, 0); ctx.lineTo(-ws * 0.45, -ws * 0.42); ctx.lineTo(-ws * 0.2, 0); ctx.lineTo(-ws * 0.45, ws * 0.42); ctx.closePath(); ctx.fill(); ctx.stroke();
     }
     ctx.restore();
-    if (!second && held) { // button held: a pulse ring
-      ctx.save(); ctx.strokeStyle = rgba(TH.pos, 0.9); ctx.lineWidth = 2;
+    if (!second && held) { // button held: a thin ring
+      ctx.save(); ctx.strokeStyle = "rgba(255,255,255,0.85)"; ctx.lineWidth = 1.5;
       ctx.beginPath(); ctx.arc(X, Y, s * 0.95, 0, Math.PI * 2); ctx.stroke(); ctx.restore();
     }
   }
@@ -731,7 +719,7 @@
   function updateHud() {
     const T = S.T, f = S.f;
     const m = T.mode[f], sp = speedInfo(T.xs[f]), fl = T.flags[f];
-    const chips = [`<span class="chip"><i style="background:${TH.modes[m]}"></i>${MODE_NAMES[m] || "?"}</span>`, `<span class="chip">${sp[1]} speed</span>`];
+    const chips = [`<span class="chip"><i style="background:${TH.sceneModes[m]}"></i>${MODE_NAMES[m] || "?"}</span>`, `<span class="chip">${sp[1]} speed</span>`];
     if (fl & FL.UPSIDE_DOWN) chips.push(`<span class="chip">gravity flipped</span>`);
     if (fl & FL.MINI) chips.push(`<span class="chip">mini</span>`);
     if (fl & FL.DUAL) chips.push(`<span class="chip">dual</span>`);
@@ -746,52 +734,54 @@
   }
 
   /* ================================================================ network layout */
+  // Drawn the way TensorFlow Playground draws its network: square nodes with a
+  // dark border, curved links whose colour is the sign and width the size,
+  // uppercase column headings (FEATURES, HIDDEN LAYERS, OUTPUT).
   const NG = {};
   function layoutNet() {
     const T = S.T, C = CV.net; if (!T || !C) return;
-    const { w, h } = C, pad = 10, top = 34, bot = 10;
-    const inW = clamp(w * 0.37, 200, 330), outW = clamp(w * 0.17, 118, 168);
+    const { w, h } = C, pad = 4, top = 56, bot = 22;
+    const inW = clamp(w * 0.35, 200, 330), outW = clamp(w * 0.2, 150, 210);
     const midX0 = pad + inW, midX1 = w - pad - outW, midW = midX1 - midX0;
-    const availH = h - top - bot - 26;
-    // hidden layers: pick the grid shape that gives the roomiest neurons
-    const n1 = T.sizes[1];
-    const hcW = midW * 0.2;
+    const availH = h - top - bot;
+    // hidden layers: pick the grid shape that gives the roomiest nodes
+    const n1 = T.sizes[1], hcW = midW * 0.2;
     let best = null;
     for (const cols of [2, 4, 8, 16]) {
       if (n1 % cols) continue;
       const rows = n1 / cols, sp = Math.min(hcW / cols, availH / rows);
       if (!best || sp > best.sp) best = { cols, rows, sp };
     }
-    const sp = Math.min(best.sp, 22), r = clamp(sp * 0.36, 2.2, 8);
+    const sp = Math.min(best.sp, 22), half = clamp(sp * 0.36, 2.2, 8);
     const gridW = best.cols * sp, gridH = best.rows * sp;
     const gap = (midW - T.nh * gridW) / (T.nh + 1);
     NG.hid = [];
     for (let l = 0; l < T.nh; l++) {
-      const gx = midX0 + gap * (l + 1) + gridW * l, gy = top + 16 + (availH - gridH) / 2;
+      const gx = midX0 + gap * (l + 1) + gridW * l, gy = top + (availH - gridH) / 2;
       const n = T.sizes[l + 1], pos = new Float32Array(n * 2);
       for (let i = 0; i < n; i++) { const k = T.rank[l][i], cx = k % best.cols, cy = Math.floor(k / best.cols); pos[2 * i] = gx + (cx + 0.5) * sp; pos[2 * i + 1] = gy + (cy + 0.5) * sp; }
-      NG.hid.push({ x: gx, y: gy, w: gridW, h: gridH, pos, r, n });
+      NG.hid.push({ x: gx, y: gy, w: gridW, h: gridH, pos, r: half, n });
     }
-    // outputs
-    const ox = midX1 + 26, cyMid = top + 16 + availH / 2;
-    NG.out = [{ x: ox, y: cyMid - 34, r: 15, label: "Release" }, { x: ox, y: cyMid + 34, r: 15, label: "Jump" }];
-    NG.value = { x: ox - 10, y: cyMid + 92, w: outW - 30 };
+    // outputs: two squares, Release above Jump
+    const ox = midX1 + 30, cyMid = top + availH * 0.42;
+    NG.out = [{ x: ox, y: cyMid - 30, r: 13, label: "Release" }, { x: ox, y: cyMid + 30, r: 13, label: "Jump" }];
+    NG.value = { x: ox - 13, y: cyMid + 96, w: w - pad - (ox - 13) };
     NG.cols = { inX: pad, inW, out: ox, midX0, midX1 };
-    // inputs: groups stacked; each is a header, column labels, a grid of cells, an axis
-    const labW = 40, cellMax = 15, HEAD = 14, COLL = 10, AXIS = 11, GAP = 8;
+    // features: groups stacked; each is a header, column labels, a grid of cells, an axis
+    const labW = 42, cellMax = 15, HEAD = 15, COLL = 11, AXIS = 12, GAP = 9;
     const items = T.groups.map(g => {
       const cols = Math.max(...g.grid.map(r2 => r2.length));
       return { g, cols, rows: g.grid.length, c: Math.min(cellMax, (inW - labW - 4) / cols), top: g.col_labels ? COLL : 0, bot: g.axis ? AXIS : 0 };
     });
-    const avail = h - top - bot;
+    const avail = h - top - bot + 8;
     const fixed = items.reduce((a, it) => a + HEAD + it.top + it.bot + GAP, 0) - GAP;
     const cellsH = items.reduce((a, it) => a + it.rows * it.c, 0);
     const scale = clamp((avail - fixed) / cellsH, 0.3, 1);
     for (const it of items) it.c *= scale;
     const total = fixed + items.reduce((a, it) => a + it.rows * it.c, 0);
-    let y = top + Math.max(0, (avail - total) / 2);
+    let y = top - 8 + Math.max(0, (avail - total) / 2);
     NG.cells = new Float32Array(T.D * 3); // x, y, size
-    NG.port = new Float32Array(T.D); // where a feature's connections leave its group: the grid's right edge
+    NG.port = new Float32Array(T.D); // where a feature's links leave its group: the grid's right edge
     NG.groups = [];
     for (const it of items) {
       const g = it.g, c = it.c, gx = pad + labW;
@@ -807,64 +797,65 @@
     const T = S.T, C = CV.net, { w, h, dpr } = C;
     const off = offscreen(w, h, dpr), ctx = off.ctx;
     const font = TH.font;
-    // layer titles
-    ctx.fillStyle = TH.mute; ctx.font = `700 10.5px ${font}`; ctx.textAlign = "left";
-    ctx.fillText(`INPUTS · ${T.D}`, NG.cols.inX, 14);
-    NG.hid.forEach((hd, l) => { ctx.textAlign = "center"; ctx.fillText(`HIDDEN ${l + 1} · ${hd.n}`, hd.x + hd.w / 2, 14); });
-    ctx.textAlign = "left"; ctx.fillText("OUTPUT", NG.out[0].x - 15, 14);
-    ctx.font = `500 9.5px ${font}`; ctx.fillStyle = TH.dim;
+    // column headings, as in the Playground
+    ctx.fillStyle = TH.text; ctx.font = `400 15px ${font}`; ctx.textAlign = "left"; ctx.textBaseline = "alphabetic";
+    ctx.fillText("FEATURES", NG.cols.inX, 16);
+    const hx = (NG.hid[0].x + NG.hid[T.nh - 1].x + NG.hid[T.nh - 1].w) / 2;
+    ctx.textAlign = "center"; ctx.fillText(`${T.nh} HIDDEN LAYERS`, hx, 16);
+    ctx.textAlign = "left"; ctx.fillText("OUTPUT", NG.out[0].x - NG.out[0].r, 16);
+    ctx.font = `300 12px ${font}`; ctx.fillStyle = TH.label;
+    ctx.textAlign = "left"; ctx.fillText(`${T.D} numbers from the encoder`, NG.cols.inX, 33);
+    NG.hid.forEach(hd => { ctx.textAlign = "center"; ctx.fillText(`${hd.n} neurons, tanh`, hd.x + hd.w / 2, 33); });
+    ctx.textAlign = "left"; ctx.fillText("softmax", NG.out[0].x - NG.out[0].r, 33);
+    ctx.font = `300 10.5px ${font}`; ctx.fillStyle = TH.dim;
     NG.hid.forEach(hd => {
       ctx.textAlign = "center";
-      ctx.fillText("tanh", hd.x + hd.w / 2, 26);
-      ctx.fillText("↑ votes Release", hd.x + hd.w / 2, hd.y - 6);
-      ctx.fillText("votes Jump ↓", hd.x + hd.w / 2, hd.y + hd.h + 12);
+      ctx.fillText("↑ toward Release", hd.x + hd.w / 2, hd.y - 6);
+      ctx.fillText("toward Jump ↓", hd.x + hd.w / 2, hd.y + hd.h + 14);
     });
-    // hidden layer frames
-    NG.hid.forEach(hd => {
-      ctx.strokeStyle = TH.line; ctx.lineWidth = 1;
-      roundRect(ctx, hd.x - 5, hd.y - 2, hd.w + 10, hd.h + 4, 8); ctx.stroke();
-    });
-    // input groups
+    // feature groups
     for (const G of NG.groups) {
       const g = G.g, gx = G.x + G.labW;
-      ctx.textAlign = "left"; ctx.fillStyle = TH.text; ctx.font = `700 10px ${font}`;
+      ctx.textAlign = "left"; ctx.fillStyle = TH.text; ctx.font = `400 11px ${font}`;
       ctx.fillText(g.label.toUpperCase(), G.x, G.y + 10);
       const tw = ctx.measureText(g.label.toUpperCase()).width;
-      ctx.fillStyle = TH.dim; ctx.font = `500 9.5px ${font}`; ctx.fillText(g.sub || "", G.x + tw + 6, G.y + 10);
-      // column labels (the kind columns of the object slots get colour keys)
-      if (g.col_labels) {
-        ctx.font = `500 8.5px ${font}`; ctx.textAlign = "center";
+      ctx.fillStyle = TH.label; ctx.font = `300 11px ${font}`;
+      const room = NG.cols.inX + NG.cols.inW - (G.x + tw + 6);
+      let sub = g.sub || "";
+      if (ctx.measureText(sub).width > room) { // shorten to fit, with an ellipsis
+        while (sub && ctx.measureText(sub + "…").width > room) sub = sub.slice(0, -1);
+        sub = sub.replace(/[\s,]+$/, "") + "…";
+      }
+      ctx.fillText(sub, G.x + tw + 6, G.y + 10);
+      if (g.col_labels) { // the kind columns of the object slots get colour keys
+        ctx.font = `300 ${G.c < 13 ? 8 : 9}px ${font}`; ctx.textAlign = "center";
         const KC = { sol: "solid", haz: "hazard", orb: "orb", pad: "pad", por: "portal", oth: "other" };
         g.col_labels[0].forEach((lab, ci) => {
           const fi = g.grid[0][ci];
           if (fi == null) return;
-          const cx = NG.cells[3 * fi] + G.c / 2, ly = G.colLabY + 7;
-          if (g.id === "slots" && KC[lab]) { ctx.fillStyle = KIND_COLOR[KC[lab]]; ctx.fillRect(cx - 3, ly - 6, 6, 6); }
-          else { ctx.fillStyle = TH.mute; ctx.fillText(lab, cx, ly); }
+          const cx = NG.cells[3 * fi] + G.c / 2, ly = G.colLabY + 8;
+          if (g.id === "slots" && KC[lab]) { ctx.fillStyle = KIND_KEY[KC[lab]]; ctx.fillRect(cx - 3, ly - 6, 6, 6); }
+          else { ctx.fillStyle = TH.label; ctx.fillText(lab, cx, ly); }
         });
       }
-      // row labels
-      ctx.font = `500 9px ${font}`; ctx.textAlign = "right"; ctx.fillStyle = TH.mute;
-      if (g.row_labels) g.row_labels.forEach((lab, ri) => { ctx.fillText(lab, gx - 5, G.gridY + ri * G.c + G.c / 2 + 3); });
-      else if (g.id === "player") { ctx.fillText("now", gx - 5, G.gridY + G.c / 2 + 3); }
-      // axis under the grid (timing, terrain, position)
-      if (g.axis) {
-        ctx.fillStyle = TH.dim; ctx.font = `500 8.5px ${font}`;
-        const yy = G.bottom + 9;
-        const xL = gx, xR = gx + G.cols * G.c;
+      ctx.font = `300 10px ${font}`; ctx.textAlign = "right"; ctx.fillStyle = TH.label;
+      if (g.row_labels) g.row_labels.forEach((lab, ri) => { ctx.fillText(lab, gx - 5, G.gridY + ri * G.c + G.c / 2 + 3.5); });
+      else if (g.id === "player") { ctx.fillText("now", gx - 5, G.gridY + G.c / 2 + 3.5); }
+      if (g.axis) { // under the grid (timing, terrain, position)
+        ctx.fillStyle = TH.dim; ctx.font = `300 9.5px ${font}`;
+        const yy = G.bottom + 10, xL = gx, xR = gx + G.cols * G.c;
         ctx.textAlign = "left"; ctx.fillText(fmtAxis(g.axis[0], g), xL, yy);
         ctx.textAlign = "right"; ctx.fillText(fmtAxis(g.axis[1], g) + " " + (g.axis_unit || ""), xR, yy);
       }
     }
-    // outputs
-    ctx.font = `600 11px ${font}`; ctx.textAlign = "left";
-    NG.out.forEach(o => { ctx.fillStyle = TH.text; ctx.fillText(o.label, o.x + o.r + 9, o.y - 4); });
-    ctx.font = `600 10px ${font}`; ctx.fillStyle = TH.mute; ctx.textAlign = "left";
-    ctx.fillText("VALUE V(s)", NG.value.x, NG.value.y - 8);
-    ctx.font = `500 9px ${font}`; ctx.fillStyle = TH.dim;
-    ctx.fillText("critic, separate net", NG.value.x, NG.value.y + 26);
+    // outputs and value labels
+    ctx.textAlign = "left";
+    NG.out.forEach(o => { ctx.fillStyle = TH.text; ctx.font = `300 13px ${font}`; ctx.fillText(o.label, o.x + o.r + 10, o.y - 3); });
+    ctx.font = `300 12px ${font}`; ctx.fillStyle = TH.label;
+    ctx.fillText("Value V(s)", NG.value.x, NG.value.y - 10);
+    ctx.font = `300 11px ${font}`; ctx.fillStyle = TH.dim;
+    ctx.fillText("separate critic network", NG.value.x, NG.value.y + 40);
     NG.static = off.cv;
-    // hover regions are computed from NG on demand
   }
   function fmtAxis(v, g) {
     if (g.axis_log) return v >= 1000 ? (v / 1000).toFixed(0) + "k" : String(Math.round(v));
@@ -873,115 +864,96 @@
 
   /* ================================================================ network draw */
   function bez(x0, y0, x1, y1) { const dx = (x1 - x0) * 0.5; return [x0, y0, x0 + dx, y0, x1 - dx, y1, x1, y1]; }
-  function bezPt(b, t) {
-    const u = 1 - t, a = u * u * u, c = 3 * u * u * t, d = 3 * u * t * t, e = t * t * t;
-    return [a * b[0] + c * b[2] + d * b[4] + e * b[6], a * b[1] + c * b[3] + d * b[5] + e * b[7]];
-  }
-  function nodePos(l, i) { // l: -1 input, 0..nh-1 hidden, nh output
+  function nodePos(l, i) { // l: -1 feature, 0..nh-1 hidden, nh output
     if (l === -1) { const c = NG.cells[3 * i + 2]; return [NG.port[i], NG.cells[3 * i + 1] + c / 2]; }
     if (l < S.T.nh) { const hd = NG.hid[l]; return [hd.pos[2 * i], hd.pos[2 * i + 1]]; }
     return [NG.out[i].x, NG.out[i].y];
   }
-  function drawNet(now) {
+  function drawNet() {
     const T = S.T, C = CV.net; if (!T || !C || !NG.static) return;
-    const ctx = C.ctx, { w, h } = C, f = S.f;
+    const ctx = C.ctx, { w, h } = C, f = S.f, nh = T.nh;
     ctx.clearRect(0, 0, w, h);
     ctx.drawImage(NG.static, 0, 0, w, h);
-    // connections
-    const edges = selectEdges(T, f), nh = T.nh;
+    // links: colour = sign of input x weight (weak ones fade toward grey), width = its size
+    const edges = selectEdges(T, f);
     ctx.save();
-    ctx.globalCompositeOperation = TH.dark ? "lighter" : "source-over";
-    ctx.lineCap = "round";
-    const tt = (now || 0) / 1000;
-    for (const e of edges) {
+    ctx.lineCap = "butt";
+    // while playing, links are dashed and the dashes move toward the output with the
+    // decision counter (the Playground moves its link dashes with the epoch counter)
+    const flowing = S.playing && !reduceMotion;
+    if (flowing) { ctx.setLineDash([9, 3]); ctx.lineDashOffset = -S.ff * 1.5; }
+    const order = edges.slice().sort((a, b) => a.s - b.s); // strong links on top
+    for (const e of order) {
       const [x0, y0] = nodePos(e.l - 1, e.i);
       const [x1, y1] = e.l === nh ? [NG.out[e.j].x - NG.out[e.j].r, NG.out[e.j].y] : nodePos(e.l, e.j);
       const b = bez(x0 + (e.l === 0 ? 1 : NG.hid[0].r), y0, x1 - (e.l === nh ? 0 : NG.hid[0].r), y1);
-      const col = e.c >= 0 ? TH.pos : TH.neg;
-      const sw = 0.6 + 2.4 * e.s;
-      ctx.strokeStyle = rgba(col, (TH.dark ? 0.05 : 0.1) + 0.15 * e.s); ctx.lineWidth = sw + 3.5;
+      ctx.strokeStyle = divColor((e.c >= 0 ? 1 : -1) * (0.25 + 0.75 * e.s));
+      ctx.lineWidth = 0.75 + 3.5 * e.s;
+      ctx.globalAlpha = 0.55 + 0.45 * e.s;
       ctx.beginPath(); ctx.moveTo(b[0], b[1]); ctx.bezierCurveTo(b[2], b[3], b[4], b[5], b[6], b[7]); ctx.stroke();
-      ctx.strokeStyle = rgba(col, 0.22 + 0.55 * e.s); ctx.lineWidth = sw;
-      ctx.stroke();
-      if (!reduceMotion) { // particles flowing toward the output
-        const nP = e.s > 0.55 ? 2 : 1;
-        for (let q = 0; q < nP; q++) {
-          const ph = ((e.i * 0.137 + e.j * 0.071 + q / nP) % 1);
-          const p = bezPt(b, (tt * (0.45 + 0.35 * e.s) + ph) % 1);
-          ctx.fillStyle = rgba(col, 0.55 + 0.45 * e.s);
-          ctx.beginPath(); ctx.arc(p[0], p[1], 1.2 + 1.3 * e.s, 0, Math.PI * 2); ctx.fill();
-        }
-      }
     }
     ctx.restore();
-    // inputs (cells that feed a drawn connection get an outline in its colour)
+    // feature cells (cells that feed a drawn link get an outline in its colour)
     const x = obsAt(T, f);
     for (let i = 0; i < T.D; i++) {
       const c = NG.cells[3 * i + 2];
       ctx.fillStyle = divColor(x[i]);
       ctx.fillRect(NG.cells[3 * i] + 0.5, NG.cells[3 * i + 1] + 0.5, c - 1, c - 1);
     }
-    ctx.lineWidth = 1.2;
+    ctx.lineWidth = 1.5;
     for (const e of edges) {
       if (e.l !== 0 || e.s < 0.12) continue;
       const c = NG.cells[3 * e.i + 2];
-      ctx.strokeStyle = rgba(e.c >= 0 ? TH.pos : TH.neg, 0.5 + 0.5 * e.s);
-      ctx.strokeRect(NG.cells[3 * e.i] + 0.5, NG.cells[3 * e.i + 1] + 0.5, c - 1, c - 1);
+      ctx.strokeStyle = divColor((e.c >= 0 ? 1 : -1) * (0.4 + 0.6 * e.s));
+      ctx.strokeRect(NG.cells[3 * e.i] + 0.75, NG.cells[3 * e.i + 1] + 0.75, c - 1.5, c - 1.5);
     }
-    // hidden neurons
+    // hidden neurons: squares with a dark border
     for (let l = 0; l < nh; l++) {
-      const hd = NG.hid[l], a = hAt(T, l, f);
-      if (TH.dark) {
-        for (let i = 0; i < hd.n; i++) {
-          const v = a[i]; if (Math.abs(v) < 0.55) continue;
-          ctx.globalAlpha = (Math.abs(v) - 0.5) * 0.9;
-          const R = hd.r * 3.2; ctx.drawImage(v > 0 ? TH.glowPos : TH.glowNeg, hd.pos[2 * i] - R, hd.pos[2 * i + 1] - R, 2 * R, 2 * R);
-        }
-        ctx.globalAlpha = 1;
-      }
+      const hd = NG.hid[l], a = hAt(T, l, f), r = hd.r;
       for (let i = 0; i < hd.n; i++) {
         ctx.fillStyle = divColor(a[i]);
-        ctx.beginPath(); ctx.arc(hd.pos[2 * i], hd.pos[2 * i + 1], hd.r, 0, Math.PI * 2); ctx.fill();
+        ctx.fillRect(hd.pos[2 * i] - r, hd.pos[2 * i + 1] - r, 2 * r, 2 * r);
       }
+      ctx.strokeStyle = "rgba(0,0,0,0.55)"; ctx.lineWidth = 1; ctx.beginPath();
+      for (let i = 0; i < hd.n; i++) ctx.rect(hd.pos[2 * i] - r + 0.5, hd.pos[2 * i + 1] - r + 0.5, 2 * r - 1, 2 * r - 1);
+      ctx.stroke();
     }
-    // outputs
+    // outputs: Release (orange side) and Jump (blue side), shaded by their probability
     const p = T.p[f], act = T.act[f];
     NG.out.forEach((o, k) => {
-      const pk = k ? p : 1 - p, pole = k ? TH.pos : TH.neg;
-      if (TH.dark && pk > 0.2) { ctx.globalAlpha = pk * 0.9; ctx.drawImage(k ? TH.glowPos : TH.glowNeg, o.x - o.r * 3, o.y - o.r * 3, o.r * 6, o.r * 6); ctx.globalAlpha = 1; }
-      ctx.fillStyle = `rgb(${pole.map((c, q) => Math.round(lerp(TH.mid[q], c, Math.pow(pk, 0.7)))).join(",")})`;
-      ctx.beginPath(); ctx.arc(o.x, o.y, o.r, 0, Math.PI * 2); ctx.fill();
-      ctx.lineWidth = act === k ? 2.5 : 1; ctx.strokeStyle = act === k ? TH.text : TH.line2;
-      ctx.beginPath(); ctx.arc(o.x, o.y, o.r + (act === k ? 3 : 0), 0, Math.PI * 2); ctx.stroke();
-      // probability bar + value
-      const bx = o.x + o.r + 9, by = o.y + 2, bw = Math.max(40, NG.value.w - 20);
-      ctx.fillStyle = rgba(TH.mid, 1); ctx.fillRect(bx, by, bw, 6);
-      ctx.fillStyle = rgba(pole, 1); ctx.fillRect(bx, by, bw * pk, 6);
-      ctx.fillStyle = TH.text; ctx.font = `600 10.5px ${TH.font}`; ctx.textAlign = "right";
-      ctx.fillText(fmtPct(pk), bx + bw, o.y - 4);
+      const pk = k ? p : 1 - p;
+      ctx.fillStyle = divColor(k ? pk : -pk);
+      ctx.fillRect(o.x - o.r, o.y - o.r, 2 * o.r, 2 * o.r);
+      ctx.lineWidth = act === k ? 2.5 : 1; ctx.strokeStyle = act === k ? "#000" : "rgba(0,0,0,0.55)";
+      ctx.strokeRect(o.x - o.r, o.y - o.r, 2 * o.r, 2 * o.r);
+      // label above, then a bar with the probability at its right end
+      const bx = o.x + o.r + 10, by = o.y + 4, room = Math.max(60, CV.net.w - 6 - bx), bw = room - 46;
+      ctx.fillStyle = rgba(TH.mid, 1); ctx.fillRect(bx, by, bw, 4);
+      ctx.fillStyle = divColor(k ? 1 : -1); ctx.fillRect(bx, by, bw * pk, 4);
+      ctx.fillStyle = TH.ink; ctx.font = `400 12px ${TH.font}`; ctx.textAlign = "right";
+      ctx.fillText(fmtPct(pk), bx + room, by + 5);
       ctx.textAlign = "left";
     });
-    // value bar
-    const V = T.value[f], vb = NG.value, mid = vb.x + vb.w / 2, half = vb.w / 2;
-    ctx.fillStyle = rgba(TH.mid, 1); ctx.fillRect(vb.x, vb.y, vb.w, 7);
-    ctx.fillStyle = TH.val; const vw = clamp(V / T.vabs, -1, 1) * half;
-    ctx.fillRect(Math.min(mid, mid + vw), vb.y, Math.abs(vw), 7);
-    ctx.fillStyle = TH.mute; ctx.fillRect(mid, vb.y - 2, 1, 11);
-    ctx.fillStyle = TH.text; ctx.font = `600 11px ${TH.font}`; ctx.textAlign = "right";
-    ctx.fillText(fmtS(V), vb.x + vb.w, vb.y + 21);
-    ctx.textAlign = "left";
-    // hover / pin rings
+    // value: a number, as the Playground shows its loss
+    const V = T.value[f], vb = NG.value, mid = vb.x + vb.w / 2, halfW = vb.w / 2;
+    ctx.fillStyle = TH.ink; ctx.font = `300 22px ${TH.font}`; ctx.textAlign = "left";
+    ctx.fillText(fmtS(V), vb.x, vb.y + 14);
+    ctx.fillStyle = rgba(TH.mid, 1); ctx.fillRect(vb.x, vb.y + 22, vb.w, 3);
+    const vw = clamp(V / T.vabs, -1, 1) * halfW;
+    ctx.fillStyle = TH.val; ctx.fillRect(Math.min(mid, mid + vw), vb.y + 22, Math.abs(vw), 3);
+    ctx.fillStyle = TH.label; ctx.fillRect(mid, vb.y + 19, 1, 9);
+    // hover (grey) / pinned (black) outlines
     for (const sel of [S.pin, S.hover && S.hover.net ? S.hover : null]) {
       if (!sel) continue;
-      ctx.strokeStyle = sel === S.pin ? "#ffffff" : TH.text; ctx.lineWidth = sel === S.pin ? 2 : 1.5;
+      ctx.strokeStyle = sel === S.pin ? "#000" : "#666"; ctx.lineWidth = 2;
       if (sel.layer === -1) { const c = NG.cells[3 * sel.i + 2]; ctx.strokeRect(NG.cells[3 * sel.i] - 1, NG.cells[3 * sel.i + 1] - 1, c + 1, c + 1); }
-      else if (sel.layer < nh) { const hd = NG.hid[sel.layer]; ctx.beginPath(); ctx.arc(hd.pos[2 * sel.i], hd.pos[2 * sel.i + 1], hd.r + 2.5, 0, Math.PI * 2); ctx.stroke(); }
-      else { const o = NG.out[sel.i]; ctx.beginPath(); ctx.arc(o.x, o.y, o.r + 5, 0, Math.PI * 2); ctx.stroke(); }
+      else if (sel.layer < nh) { const hd = NG.hid[sel.layer], r = hd.r + 2; ctx.strokeRect(hd.pos[2 * sel.i] - r, hd.pos[2 * sel.i + 1] - r, 2 * r, 2 * r); }
+      else { const o = NG.out[sel.i], r = o.r + 3; ctx.strokeRect(o.x - r, o.y - r, 2 * r, 2 * r); }
     }
-    // the scene-hovered slot: outline its input row
+    // the slot hovered in the game panel: outline its feature row
     if (S.hover && S.hover.slot != null) {
       const g = T.groups.find(gg => gg.id === "slots");
-      if (g) { const row = g.grid[S.hover.slot], a = row[0], b = row[row.length - 1]; const c = NG.cells[3 * a + 2]; ctx.strokeStyle = "#ffffff"; ctx.lineWidth = 1.5; ctx.strokeRect(NG.cells[3 * a] - 2, NG.cells[3 * a + 1] - 2, NG.cells[3 * b] - NG.cells[3 * a] + c + 3, c + 3); }
+      if (g) { const row = g.grid[S.hover.slot], a = row[0], b = row[row.length - 1], c = NG.cells[3 * a + 2]; ctx.strokeStyle = "#000"; ctx.lineWidth = 1.5; ctx.strokeRect(NG.cells[3 * a] - 2, NG.cells[3 * a + 1] - 2, NG.cells[3 * b] - NG.cells[3 * a] + c + 3, c + 3); }
     }
   }
   function netHit(mx, my) {
@@ -994,7 +966,7 @@
       for (let i = 0; i < hd.n; i++) { const d = (hd.pos[2 * i] - mx) ** 2 + (hd.pos[2 * i + 1] - my) ** 2; if (d < bd) { bd = d; best = i; } }
       if (bd <= (hd.r + 4) ** 2) return { net: true, layer: l, i: best };
     }
-    for (let k = 0; k < 2; k++) { const o = NG.out[k]; if ((o.x - mx) ** 2 + (o.y - my) ** 2 <= (o.r + 8) ** 2) return { net: true, layer: T.nh, i: k }; }
+    for (let k = 0; k < 2; k++) { const o = NG.out[k]; if (Math.abs(o.x - mx) <= o.r + 6 && Math.abs(o.y - my) <= o.r + 6) return { net: true, layer: T.nh, i: k }; }
     return null;
   }
 
@@ -1060,15 +1032,14 @@
   function updateSide() {
     const T = S.T, f = S.f, p = T.p[f], act = T.act[f];
     $("#d-index").textContent = `#${fmtInt(f + 1)} of ${fmtInt(T.N)} · ${fmtTime(T.time[f])}`;
-    const nm = $("#d-name"); nm.textContent = act ? "JUMP" : "RELEASE"; nm.className = "aname " + (act ? "jump" : "release");
+    $("#d-name").textContent = act ? "Jump" : "Release";
+    $("#d-sw").style.background = divColor(act ? 1 : -1);
     $("#d-asub").textContent = act ? "button held for the next 4 ticks" : "button up for the next 4 ticks";
     $("#d-pfill").style.width = (p * 100).toFixed(2) + "%";
     $("#d-p").textContent = "p(jump) " + fmtPct(p);
     $("#d-logit").textContent = fmtS(T.logits[2 * f + 1] - T.logits[2 * f]);
     const V = T.value[f];
     $("#d-value").textContent = fmtS(V);
-    const vf = $("#d-vfill"), half = clamp(V / T.vabs, -1, 1) * 50;
-    vf.style.left = (half >= 0 ? 50 : 50 + half) + "%"; vf.style.width = Math.abs(half) + "%";
     // knock-outs
     const K = knockouts(T, f);
     let topQ = -1, topV = 0;
@@ -1077,14 +1048,14 @@
       const R = S.whyRows[q]; if (!R) return;
       const g = r.g, half2 = clamp(r.dp, -1, 1) * 50;
       R.bar.style.left = (half2 >= 0 ? 50 : 50 + half2) + "%"; R.bar.style.width = Math.max(Math.abs(half2), r.dp ? 0.6 : 0) + "%";
-      R.bar.style.background = r.dp >= 0 ? `rgb(${TH.pos.join(",")})` : `rgb(${TH.neg.join(",")})`;
+      R.bar.style.background = divColor(r.dp >= 0 ? 1 : -1);
       R.val.textContent = Math.abs(r.dp) < 0.005 ? "0" : fmtS(r.dp, 2);
       R.el.classList.toggle("top", q === topQ && topV > 0.05);
       R.el.classList.toggle("empty", r.empty);
       if (g.slot != null) {
         const d = slotDesc(T, f, g.slot);
         R.small.textContent = d ? d.text : "empty slot";
-        R.kd.style.background = d ? KIND_COLOR[d.kind] || "#999" : "transparent";
+        R.kd.style.background = d ? KIND_KEY[d.kind] || "#999" : "transparent";
       } else { R.small.textContent = g.id === "player" ? `${MODE_NAMES[T.mode[f]]}, ${flagAt(T, f, FL.ON_GROUND) ? "on the ground" : "in the air"}` : g.id === "terrain" ? `${T.enc.profile_dx.length} columns ahead` : "sin/cos of x"; R.kd.style.background = "transparent"; }
     });
     // one-sentence reading
@@ -1100,7 +1071,10 @@
     $("#story").innerHTML = st;
     // transport readout
     const x = T.x[f];
-    $("#readout").innerHTML = `decision <b>${fmtInt(f + 1)}</b>/${fmtInt(T.N)} · <b>${fmtTime(T.time[f])}</b> · x <b>${fmtInt(x)}</b> · <b>${(100 * x / (T.meta.level_length || 1)).toFixed(1)}%</b> · ${S.speed}×`;
+    $("#readout").innerHTML = `x <b>${fmtInt(x)}</b> of ${fmtInt(T.meta.level_length)} · ${MODE_NAMES[T.mode[f]]} · ${speedInfo(T.xs[f])[1]} speed`;
+    $("#c-decision").textContent = `${fmtInt(f + 1)} / ${fmtInt(T.N)}`;
+    $("#c-time").textContent = fmtTime(T.time[f]);
+    $("#c-progress").textContent = `${(100 * x / (T.meta.level_length || 1)).toFixed(1)}%`;
     updateHud();
   }
 
@@ -1123,8 +1097,8 @@
     const { w, h, dpr } = C, L = (TL.L = tlLayout());
     const off = offscreen(w, h, dpr), ctx = off.ctx, N = T.N;
     const font = TH.font;
-    ctx.font = `600 10px ${font}`; ctx.textAlign = "right"; ctx.fillStyle = TH.mute;
-    const lab = (k, txt, sub) => { const [y, hh] = L[k]; ctx.fillStyle = TH.mute; ctx.font = `600 10px ${font}`; ctx.fillText(txt, L.left - 8, y + hh / 2 + (sub ? -1 : 3.5)); if (sub) { ctx.fillStyle = TH.dim; ctx.font = `500 9px ${font}`; ctx.fillText(sub, L.left - 8, y + hh / 2 + 10); } };
+    ctx.textAlign = "right";
+    const lab = (k, txt, sub) => { const [y, hh] = L[k]; ctx.fillStyle = TH.text; ctx.font = `300 12px ${font}`; ctx.fillText(txt, L.left - 10, y + hh / 2 + (sub ? -1 : 4)); if (sub) { ctx.fillStyle = TH.label; ctx.font = `300 10px ${font}`; ctx.fillText(sub, L.left - 10, y + hh / 2 + 11); } };
     lab("mode", "mode"); lab("p", "p(jump)", "held ▬"); lab("v", "value V(s)");
     if (S.pin) lab("pin", pinLabel(T, S.pin).slice(0, 14));
     // mode band + gravity strip + held strip (runs of equal values)
@@ -1133,31 +1107,32 @@
     runs(T.mode, (a, b, m) => { ctx.fillStyle = TH.modes[m] || "#999"; ctx.fillRect(tx(a), my, Math.max(1, tx(b) - tx(a) - 1), mh); });
     const grav = new Uint8Array(N); for (let f = 0; f < N; f++) grav[f] = (T.flags[f] & FL.UPSIDE_DOWN) ? 1 : 0;
     const [gy, gh] = L.grav;
-    runs(grav, (a, b, v) => { if (v) { ctx.fillStyle = TH.mute; ctx.fillRect(tx(a), gy, Math.max(1, tx(b) - tx(a)), gh); } });
+    runs(grav, (a, b, v) => { if (v) { ctx.fillStyle = "#bbb"; ctx.fillRect(tx(a), gy, Math.max(1, tx(b) - tx(a)), gh); } });
     // p(jump): per-pixel envelope, area from 0
     const [py, ph] = L.p, pyb = py + ph;
-    ctx.strokeStyle = TH.line; ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(L.left, py + 0.5); ctx.lineTo(w - L.right, py + 0.5); ctx.moveTo(L.left, pyb - 0.5); ctx.lineTo(w - L.right, pyb - 0.5); ctx.stroke();
-    ctx.fillStyle = TH.dim; ctx.font = `500 8.5px ${font}`; ctx.textAlign = "left"; ctx.fillText("1", L.left + 2, py + 8); ctx.fillText("0", L.left + 2, pyb - 6);
+    ctx.strokeStyle = TH.soft; ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(L.left, py + 0.5); ctx.lineTo(w - L.right, py + 0.5); ctx.stroke();
+    ctx.strokeStyle = TH.line2; ctx.beginPath(); ctx.moveTo(L.left, pyb - 0.5); ctx.lineTo(w - L.right, pyb - 0.5); ctx.stroke();
+    ctx.fillStyle = TH.label; ctx.font = `300 10px ${font}`; ctx.textAlign = "right"; ctx.fillText("1", L.left - 2, py + 8); ctx.fillText("0", L.left - 2, pyb - 1);
     const cols = Math.max(1, Math.floor(L.iw));
     const env = (arr, fn) => { for (let c = 0; c < cols; c++) { const a = Math.floor(c / cols * N), b = Math.max(a + 1, Math.floor((c + 1) / cols * N)); let lo = Infinity, hi = -Infinity, s = 0; for (let f = a; f < b && f < N; f++) { const v = arr[f]; if (v < lo) lo = v; if (v > hi) hi = v; s += v; } fn(c, lo, hi, s / (b - a)); } };
-    ctx.fillStyle = rgba(TH.pos, TH.dark ? 0.55 : 0.5);
+    ctx.fillStyle = rgba(TH.pos, 0.22);
     env(T.p, (c, lo, hi) => { const y0 = pyb - hi * (ph - 4); ctx.fillRect(L.left + c, y0, 1, pyb - y0); });
     ctx.fillStyle = rgba(TH.pos, 1);
     env(T.p, (c, lo, hi, m) => { const y0 = pyb - hi * (ph - 4); ctx.fillRect(L.left + c, y0, 1, 1.2); });
     // 0.5 threshold
-    ctx.strokeStyle = rgba(hexRgb(TH.text), 0.25); ctx.setLineDash([2, 3]); ctx.beginPath(); ctx.moveTo(L.left, pyb - 0.5 * (ph - 4)); ctx.lineTo(w - L.right, pyb - 0.5 * (ph - 4)); ctx.stroke(); ctx.setLineDash([]);
+    ctx.strokeStyle = TH.soft; ctx.beginPath(); ctx.moveTo(L.left, pyb - 0.5 * (ph - 4) + 0.5); ctx.lineTo(w - L.right, pyb - 0.5 * (ph - 4) + 0.5); ctx.stroke();
     // held strip under the lane
     runs(T.act, (a, b, v) => { if (v) { ctx.fillStyle = rgba(TH.pos, 1); ctx.fillRect(tx(a), pyb + 1, Math.max(1, tx(b) - tx(a)), 3); } });
     // value lane
     const [vy, vh] = L.v, vz = vy + vh / 2, vs = (vh / 2 - 2) / T.vabs;
-    ctx.strokeStyle = TH.line; ctx.beginPath(); ctx.moveTo(L.left, vz + 0.5); ctx.lineTo(w - L.right, vz + 0.5); ctx.stroke();
+    ctx.strokeStyle = TH.line2; ctx.beginPath(); ctx.moveTo(L.left, vz + 0.5); ctx.lineTo(w - L.right, vz + 0.5); ctx.stroke();
     ctx.fillStyle = TH.val;
     env(T.value, (c, lo, hi) => { const a = vz - hi * vs, b = vz - lo * vs; ctx.fillRect(L.left + c, a, 1, Math.max(1.2, b - a)); });
-    ctx.fillStyle = TH.dim; ctx.font = `500 8.5px ${font}`; ctx.fillText(fmtS(T.vabs, 1), L.left + 2, vy + 8); ctx.fillText("0", L.left + 2, vz - 2);
+    ctx.fillStyle = TH.label; ctx.font = `300 10px ${font}`; ctx.textAlign = "right"; ctx.fillText(fmtS(T.vabs, 1), L.left - 2, vy + 8); ctx.fillText("0", L.left - 2, vz + 3.5);
     // pinned neuron / input lane
     if (S.pin) {
       const [qy, qh] = L.pin, qz = qy + qh / 2, arr = pinSeries(T, S.pin);
-      ctx.strokeStyle = TH.line; ctx.beginPath(); ctx.moveTo(L.left, qz + 0.5); ctx.lineTo(w - L.right, qz + 0.5); ctx.stroke();
+      ctx.strokeStyle = TH.line2; ctx.beginPath(); ctx.moveTo(L.left, qz + 0.5); ctx.lineTo(w - L.right, qz + 0.5); ctx.stroke();
       env(arr, (c, lo, hi, m) => { ctx.fillStyle = divColor(m); const a = qz - hi * (qh / 2 - 1), b = qz - lo * (qh / 2 - 1); ctx.fillRect(L.left + c, a, 1, Math.max(1.2, b - a)); });
     }
     // events lane: mode changes (labelled), speed, size, dual; gravity flips as ticks
@@ -1165,23 +1140,23 @@
     let lastLabelX = -1e9;
     for (const e of T.events) {
       const X = tx(Math.min(e.f, N - 1));
-      if (e.type === "gravity") { ctx.fillStyle = TH.dim; ctx.fillRect(X, ey + eh - 5, 1, 5); continue; }
+      if (e.type === "gravity") { ctx.fillStyle = "#c8c8c8"; ctx.fillRect(X, ey + eh - 5, 1, 5); continue; }
       if (e.type === "mode") {
         const m = T.raw.modes.indexOf(e.to), c = TH.modes[m] || "#999";
         ctx.fillStyle = c; ctx.beginPath(); ctx.moveTo(X, ey + eh - 1); ctx.lineTo(X - 4, ey + eh - 8); ctx.lineTo(X + 4, ey + eh - 8); ctx.closePath(); ctx.fill();
-        if (X - lastLabelX > 34) { ctx.fillStyle = TH.mute; ctx.font = `600 9px ${font}`; ctx.textAlign = "left"; ctx.fillText(MODE_NAMES[m] || e.to, X + 3, ey + 7); lastLabelX = X; }
+        if (X - lastLabelX > 34) { ctx.fillStyle = TH.text; ctx.font = `300 10px ${font}`; ctx.textAlign = "left"; ctx.fillText(MODE_NAMES[m] || e.to, X + 3, ey + 8); lastLabelX = X; }
       } else if (e.type === "speed") {
-        const sp = speedInfo(e.speed); ctx.strokeStyle = sp[2]; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.moveTo(X - 2, ey + eh - 9); ctx.lineTo(X + 1, ey + eh - 5); ctx.lineTo(X - 2, ey + eh - 1); ctx.stroke();
-      } else if (e.type === "size") { ctx.fillStyle = e.mini ? "#ff4fd8" : "#3dff7a"; ctx.beginPath(); ctx.arc(X, ey + eh - 4, 2, 0, Math.PI * 2); ctx.fill(); }
-      else if (e.type === "dual") { ctx.fillStyle = "#ffa630"; ctx.fillRect(X - 2.5, ey + eh - 7, 5, 5); }
+        ctx.strokeStyle = "#999"; ctx.lineWidth = 1.2; ctx.beginPath(); ctx.moveTo(X - 2, ey + eh - 9); ctx.lineTo(X + 1, ey + eh - 5); ctx.lineTo(X - 2, ey + eh - 1); ctx.stroke();
+      } else if (e.type === "size") { ctx.fillStyle = "#999"; ctx.beginPath(); ctx.arc(X, ey + eh - 4, 2, 0, Math.PI * 2); ctx.fill(); }
+      else if (e.type === "dual") { ctx.strokeStyle = "#777"; ctx.lineWidth = 1; ctx.strokeRect(X - 2.5, ey + eh - 7.5, 5, 5); }
     }
     // time axis
     const [ay] = L.axis;
-    ctx.fillStyle = TH.dim; ctx.font = `500 9.5px ${font}`; ctx.textAlign = "center";
+    ctx.font = `300 11px ${font}`; ctx.textAlign = "center";
     const dur = T.dur, step = niceStep(dur / Math.max(2, L.iw / 90));
     for (let t = 0; t <= dur + 1e-6; t += step) {
       const f = timeToFrame(T, t), X = tx(f);
-      ctx.fillRect(X, ay, 1, 3);
+      ctx.fillStyle = TH.line2; ctx.fillRect(X, ay, 1, 3); ctx.fillStyle = TH.label;
       ctx.fillText(t >= 60 ? `${Math.floor(t / 60)}:${String(Math.round(t % 60)).padStart(2, "0")}` : `${Math.round(t)} s`, X, ay + 12);
     }
     TL.static = off.cv;
@@ -1204,11 +1179,11 @@
     // hover crosshair
     if (S.tlHover != null) {
       const X = tx(S.tlHover);
-      ctx.fillStyle = rgba(hexRgb(TH.text), 0.35); ctx.fillRect(X, L.mode[0], 1, L.axis[0] - L.mode[0]);
+      ctx.fillStyle = "#999"; ctx.fillRect(X, L.mode[0], 1, L.axis[0] - L.mode[0]);
     }
     // playhead
     const X = tx(S.ff);
-    ctx.fillStyle = TH.cyan; ctx.fillRect(X - 1, L.ev[0], 2, L.axis[0] - L.ev[0]);
+    ctx.fillStyle = TH.head; ctx.fillRect(X - 0.75, L.ev[0], 1.5, L.axis[0] - L.ev[0]);
     ctx.beginPath(); ctx.moveTo(X - 5, L.ev[0]); ctx.lineTo(X + 5, L.ev[0]); ctx.lineTo(X, L.ev[0] + 6); ctx.closePath(); ctx.fill();
     // current values beside the playhead
     const f = S.f, [py, ph] = L.p, pyb = py + ph;
@@ -1281,7 +1256,7 @@
   }
   function setSpeed(v) {
     S.speed = v; savePrefs();
-    for (const b of $("#speed").children) b.classList.toggle("on", +b.dataset.v === v);
+    $("#speed").value = String(v);
     S.dirty = true;
   }
   let hashT = 0;
@@ -1289,7 +1264,10 @@
     clearTimeout(hashT);
     hashT = setTimeout(() => {
       if (!S.T || S.playing) return;
-      const q = S.embedded ? "" : `?trace=${encodeURIComponent(S.name)}`;
+      const qs = new URLSearchParams(location.search);
+      if (!S.embedded) qs.set("trace", S.name);
+      qs.delete("autoplay"); // a reload should not start playing again
+      const q = qs.toString() ? "?" + qs.toString() : "";
       try { history.replaceState(null, "", `${location.pathname}${q}#f=${S.f + 1}`); } catch (e) { }
     }, 350);
   }
@@ -1315,7 +1293,7 @@
     S.lastDraw = t;
     const t0 = performance.now();
     drawScene(S.ff);
-    drawNet(t);
+    drawNet();
     drawTimeline();
     // the text panel at ~15 Hz while playing (60 Hz numbers are unreadable anyway), at once otherwise
     if (changed && (!S.playing || t - (S.lastSide || 0) > 66)) { updateSide(); S.lastSide = t; S.sideStale = false; }
@@ -1329,7 +1307,7 @@
   function fillHeader() {
     const T = S.T, m = T.meta;
     const diff = m.difficulty ? String(m.difficulty).replace(/_/g, " ") : "";
-    $("#lvl-title").innerHTML = `${esc(m.title || S.name)} ${m.completed ? '<span class="chip ok">completed</span>' : `<span class="chip bad">died ${(100 * m.progress).toFixed(1)}%</span>`}`;
+    $("#lvl-title").innerHTML = `${esc(m.title || S.name)}<span class="tag">${m.completed ? "completed" : `died at ${(100 * m.progress).toFixed(1)}%`}</span>`;
     $("#lvl-sub").textContent = [diff, m.level, `${fmtInt(m.decisions)} decisions`, `${m.seconds} s of level time`, `${m.presses} presses`, `greedy policy ${String(m.checkpoint || "").split(/[\\/]/).pop()}`].filter(Boolean).join(" · ");
     document.title = `${m.title || S.name} · GD-RL network`;
     const sz = T.sizes;
@@ -1385,11 +1363,6 @@
 
   /* ================================================================ events */
   function bindUI() {
-    $("#btn-theme").addEventListener("click", () => {
-      const t = document.documentElement.dataset.theme === "light" ? "dark" : "light";
-      try { const u = JSON.parse(localStorage.getItem("gdrl-ui") || "{}"); u.theme = t; localStorage.setItem("gdrl-ui", JSON.stringify(u)); } catch (e) { }
-      applyTheme(t);
-    });
     $("#btn-help").addEventListener("click", () => { $("#help").hidden = false; });
     $("#help-x").addEventListener("click", () => { $("#help").hidden = true; });
     $("#help").addEventListener("click", e => { if (e.target.id === "help") $("#help").hidden = true; });
@@ -1401,11 +1374,11 @@
     $("#b-prevpress").addEventListener("click", () => jumpTo(S.T.presses, -1));
     $("#b-nextpress").addEventListener("click", () => jumpTo(S.T.presses, 1));
     $("#b-nextevent").addEventListener("click", () => jumpTo(S.T.eventFrames, 1));
-    $("#speed").addEventListener("click", e => { const b = e.target.closest("button"); if (b) setSpeed(+b.dataset.v); });
-    $("#edge-mode").addEventListener("click", e => { const b = e.target.closest("button"); if (!b) return; setEdgeMode(b.dataset.v); });
-    document.querySelectorAll(".tg").forEach(b => {
-      b.classList.toggle("on", !!S.tg[b.dataset.tg]);
-      b.addEventListener("click", () => { S.tg[b.dataset.tg] = !S.tg[b.dataset.tg]; b.classList.toggle("on", S.tg[b.dataset.tg]); savePrefs(); S.dirty = true; });
+    $("#speed").addEventListener("change", e => setSpeed(+e.target.value));
+    $("#edge-mode").addEventListener("change", e => setEdgeMode(e.target.value));
+    document.querySelectorAll("input[data-tg]").forEach(b => {
+      b.checked = !!S.tg[b.dataset.tg];
+      b.addEventListener("change", () => { S.tg[b.dataset.tg] = b.checked; savePrefs(); S.dirty = true; });
     });
     $("#trace-pick").addEventListener("change", e => { openTrace(e.target.value).catch(err => showMessage("Could not load the trace", esc(err.message))); });
     // network hover / pin
@@ -1486,12 +1459,12 @@
   }
   function setEdgeMode(v) {
     S.edgeMode = v; savePrefs(); EC.key = null; S.dirty = true;
-    for (const b of $("#edge-mode").children) b.classList.toggle("on", b.dataset.v === v);
+    $("#edge-mode").value = v;
   }
 
   /* ================================================================ boot */
   async function boot() {
-    applyTheme(currentTheme());
+    readTheme();
     bindUI();
     setSpeed(S.speed); setEdgeMode(S.edgeMode);
     const emb = document.getElementById("trace-data");
@@ -1524,6 +1497,7 @@
       return;
     }
     requestAnimationFrame(loop);
+    if (AUTOPLAY != null) setTimeout(() => { S.ff = S.f = 0; setPlaying(true); document.title = "\u25b6 " + document.title; }, AUTOPLAY * 1000);
   }
   // For debugging in the console: the state, and a way to seek.
   window.gdrlViz = {
@@ -1534,7 +1508,7 @@
       for (let q = 0; q < n; q++) {
         S.ff = S.f = (from + q) % T.N;
         let t = performance.now(); drawScene(S.ff); parts.scene += performance.now() - t;
-        t = performance.now(); drawNet(t); parts.net += performance.now() - t;
+        t = performance.now(); drawNet(); parts.net += performance.now() - t;
         t = performance.now(); drawTimeline(); parts.timeline += performance.now() - t;
         t = performance.now(); updateSide(); parts.side += performance.now() - t;
       }

@@ -684,3 +684,10 @@ powershell -ExecutionPolicy Bypass -File .\overnight.ps1 -Level saved:141625101 
   objects move every frame (without the MOVED flag), so the scene draws each
   frame's own report; the first Rauchkammer state is the reset state (player
   at y 15) before the level's start position applies.
+- Restyled the same day after TensorFlow Playground (playground.tensorflow.org,
+  github.com/tensorflow/playground): light page, #183D4E header and controls,
+  Helvetica, uppercase column headings, square nodes, curved links, and the
+  Playground's colour scale (#f59322 orange = -1, #e8eaeb grey = 0, #0877bd
+  blue = +1; so Jump, a positive logit gap, is blue). The game panel keeps its
+  drawing, flattened (no glows or gradients). One-view URL overrides, never
+  saved over the viewer's settings: `?trace=sm&overlays=all&zoom=1&edges=path&speed=1&autoplay=2`.
