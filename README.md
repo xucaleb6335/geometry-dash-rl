@@ -208,7 +208,6 @@ tests/                unit and integration tests
   when random action noise is added.
 - The agent plays offline, against levels on this machine.
 
-More detail: [PROJECT_SUMMARY.md](PROJECT_SUMMARY.md) for highlights,
-[AUTOPILOT.md](AUTOPILOT.md) for the dated engineering log, and
+More detail: [PROJECT_SUMMARY.md](PROJECT_SUMMARY.md) for highlights, and
 [gdctl/README.md](gdctl/README.md) and
 [gdrl/dashboard/README.md](gdrl/dashboard/README.md) for the tools.
