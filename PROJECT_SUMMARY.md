@@ -94,6 +94,6 @@ can master a level, not general skill. On the extreme demons, plain PPO stalled
 (Bloodbath) or stayed at 0% (Rauchkammer); the routes came from search and
 were cloned into the policy, which does not complete them with sticky actions.
 
-Details: `AUTOPILOT.md` (dated log), `holistic_progress/level_beats.md` (beat
+Details: `AUTOPILOT.md` (dated log), `holistic_progress/level_beats.csv` (beat
 ledger), `python -m gdrl.dashboard` (dashboard, `/viz` for the network
 visualizer).
