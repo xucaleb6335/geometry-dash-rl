@@ -150,3 +150,11 @@ bb_beat:
   checkpoint: results/watch/bb_beat.pt   # bc21: full route cloned on the original and the community copy (2026-10-18 18:00)
   legacy_view: false
   start_pos: -2
+rk_beat:
+  name: Rauchkammer (BEATEN from the level start, original level 146399247)
+  dashboard_level: gd:146399247
+  level: saved:146399247
+  config: results/watch/rk_beat.config.yaml
+  checkpoint: results/watch/rk_beat.pt   # bc2: full search route cloned on the community copy and the original (2026-10-19 02:30)
+  legacy_view: false
+  start_pos: -2

@@ -618,3 +618,14 @@ powershell -ExecutionPolicy Bypass -File .\overnight.ps1 -Level saved:141625101 
   (8,100's route reached 10,190 but replays dead at 8,249 every time).
   Gates used: ship 7,000-9,200, wave 9,320-13,000, mini 11,000-11,150,
   normal 11,250-13,000.
+- 2026-10-19 02:30: **Rauchkammer beaten.** Further roots 9,900 (-> 11,568),
+  11,150 (-> 12,795) and 12,600 (-> the end, 0 mixed 4-tick blocks; roots
+  9,800 / 11,300 / 12,350 replayed dead, 11,400 / 8,200 killed the player on
+  spawn). `configs/demos/rk_start_end_4tick.npy` completes both the community
+  copy and the original. demo_bc from the Bloodbath init (`--retain-until-x 0`)
+  -> `runs/bc1-gd-rk-community` (reaches the end greedily), then on the
+  original with `--extra-bcdata` -> `runs/bc2-gd-rk-community`: greedy
+  **completes the original 146399247 3/3 and the community copy 3/3**
+  (gdrl.evaluate, sticky 0). Ledger updated; watch preset `rk_beat`. Mostly
+  search: PPO never got off 0% here. ~8.6 h, 8 chained searches of 20 min.
+  Next level: GRIEF.
