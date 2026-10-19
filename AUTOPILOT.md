@@ -564,3 +564,28 @@ powershell -ExecutionPolicy Bypass -File .\overnight.ps1 -Level saved:141625101 
   `runs/bc19-gd-bb-community`: greedy from the level start x 36,967
   (~93.9%, 3/3) -- through dual although the encoder has no player 2;
   watch preset `bb_94`; anchor = bc19.
+- 2026-10-18 14:27-18:03: **Bloodbath beaten.** From bc19 every run died at
+  x 36,967. A search from 36,400 (37k route prefix) reached 38,259, then
+  roots 37,900 / 38,050 both stalled at x ~38,990: the last obstacle is a
+  ground spike row (x 38,952-39,018) and the player was a **mini** cube;
+  testing a jump at every single tick before it (scratchpad `endjump.py`)
+  showed no single mini jump clears it. Cause: in the dual section player 1
+  had dropped to the bottom lane and taken the mini portal at x 36,075 (y 75,
+  meant for the lower player; size is per player in dual), and there is no
+  normal-size portal after it. A search with a size gate (player 1 not mini
+  past 36,100; StateFlag MINI = 32) went through dual with player 1 on top at
+  normal size, then searches from 36,400 (to 38,429) and 38,250 (70 s)
+  **completed the level**. `configs/demos/bb_start_end_4tick.npy` (level
+  start to the end, no mixed 4-tick blocks) completes both the community copy
+  and the original (10565740). demo_bc -> `runs/bc20-gd-bb-community`
+  (completes the community copy 3/3), but on the original it died at x 34,996:
+  the object view differs slightly between the copies (333 of 6,710 decisions
+  see different inputs; one decision flipped). New `demo_bc --extra-bcdata`
+  clones the route recorded on the original together with bc20's pairs ->
+  `runs/bc21-gd-bb-community`: greedy from the level start **completes the
+  original Bloodbath 3/3 and the community copy 3/3** (gdrl.evaluate, sticky 0,
+  fresh level open). Ledger updated; watch preset `bb_beat`
+  (`results/watch/bb_beat.pt`, level `saved:10565740`: download it first with
+  `gdctl download-level 10565740` if GD was restarted). Caveat: this is PPO
+  plus 20 search segments cloned into the policy, not PPO alone; with sticky
+  actions it would not complete. Next level: Rauchkammer.

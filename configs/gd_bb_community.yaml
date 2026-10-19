@@ -30,7 +30,7 @@ env:
     snapshot_retire_after: 150   # drop save points never passed in 150 tries (pre-UFO one was 0/570)
     demos:                 # search solution through the UFO tunnel at the policy's decision rate (4 ticks): starts every 100 units on it
       - {start_pos: 4, ticks: configs/demos/bb_ufo_4tick.npy, from_x: 10900, to_x: 12550, every: 100, align: 4}
-      - {start_pos: -2, ticks: configs/demos/bb_start_37k_4tick.npy, from_x: 15000, to_x: 36500, every: 100, align: 4}   # level start to x 36,730: 35k route to 33,700 (UFO root; wave-mode roots replay wrong), search to 35,947, then a search from 35,500 through the cube+dual portal at 36,015 (ship to 35,990, cube from 36,075; 2026-10-18 14:00)
+      - {start_pos: -2, ticks: configs/demos/bb_start_end_4tick.npy, from_x: 15000, to_x: 39000, every: 100, align: 4}   # level start to the end (completes; 2026-10-18 17:50): player 1 stays normal size through the dual section (the mini portal at 36,075 is for the lower player; a mini cube cannot clear the spike row at 38,952-39,018), then searches from 36,400 and 38,250
     horizon_starts: 2      # mid-level episodes end 2 starts on: hard spots got ~1% of steps otherwise
 agent:
   name: ppo
@@ -39,7 +39,7 @@ agent:
   update_epochs: 10
   learning_rate: 5.0e-5   # constant 2.5e-4 (no annealing) wrecked the 42.8% policy in 1 h (eval 2-30%); 30%->43% was learned at an annealed ~1e-4..4e-5
   anneal_lr: false        # was annealed to 0 at total_steps: from ~45M steps on the LR was < 25%, 0 at 60M (2026-10-16)
-  bc_data: runs/bc19-gd-bb-community/checkpoints/bc.bcdata.npz   # BC anchor: the cloned level-start route to x 36,600 (through the dual section at 36,015) (PPO drifted off each cloned route within ~1 h, 2026-10-17)
+  bc_data: runs/bc21-gd-bb-community/checkpoints/bc.bcdata.npz   # BC anchor: the full cloned route (recorded on the community copy and the original) from the level start to the end (PPO drifted off each cloned route within ~1 h, 2026-10-17)
   bc_coef: 1.0
   bc_hard_p: 0.98         # pairs where the demo action has p < 0.98 go into every BC batch (one flipped decision at x 17,490 broke the 85% route, 2026-10-18)
   gamma: 0.99

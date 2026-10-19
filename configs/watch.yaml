@@ -142,3 +142,11 @@ bb_94:
   checkpoint: results/watch/bb_94pct.pt   # bc19: route through the dual section at 36,015 (2026-10-18 14:10)
   legacy_view: false
   start_pos: -2
+bb_beat:
+  name: Bloodbath (BEATEN from the level start, original level 10565740)
+  dashboard_level: gd:10565740
+  level: saved:10565740
+  config: results/watch/bb_beat.config.yaml
+  checkpoint: results/watch/bb_beat.pt   # bc21: full route cloned on the original and the community copy (2026-10-18 18:00)
+  legacy_view: false
+  start_pos: -2

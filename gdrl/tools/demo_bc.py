@@ -63,6 +63,9 @@ def main(argv: list[str] | None = None) -> None:
                     help="keep the policy's own actions from the level start up to this x (default: where the demo "
                          "starts). Set it to where the demo's own actions start (the search root) when the demo "
                          "opens with the policy's actions: from the level start it arrives in a slightly different state")
+    ap.add_argument("--extra-bcdata", nargs="*", default=[],
+                    help="earlier .bcdata.npz files to clone together with the new pairs (e.g. the same route recorded "
+                         "on another copy of the level, whose object view differs slightly)")
     a = ap.parse_args(argv)
 
     cfg = load_config(a.config)
@@ -119,6 +122,12 @@ def main(argv: list[str] | None = None) -> None:
     X = torch.as_tensor(np.array(d_obs + r_obs), dtype=torch.float32, device=dev)
     Y = torch.as_tensor(np.array(d_act + r_act), dtype=torch.long, device=dev)
     W = torch.cat([torch.full((len(d_act),), a.demo_weight), torch.ones(len(r_act))]).to(dev)
+    for f in a.extra_bcdata:
+        ex = np.load(f)
+        X = torch.cat([X, torch.as_tensor(ex["X"], dtype=torch.float32, device=dev)])
+        Y = torch.cat([Y, torch.as_tensor(ex["Y"], dtype=torch.long, device=dev)])
+        W = torch.cat([W, torch.as_tensor(ex["W"], dtype=torch.float32, device=dev)])
+        print(f"extra pairs from {f}: {len(ex['Y'])}", flush=True)
     nd = len(d_act)
     opt = torch.optim.Adam(agent.policy.parameters(), lr=a.lr)
     for ep in range(a.max_epochs):
@@ -132,7 +141,7 @@ def main(argv: list[str] | None = None) -> None:
             with torch.no_grad():
                 pred = agent._act_policy(X.to(agent.act_device)).argmax(-1).to(dev)
                 dacc = (pred[:nd] == Y[:nd]).float().mean().item()
-                racc = (pred[nd:] == Y[nd:]).float().mean().item()
+                racc = (pred[nd:] == Y[nd:]).float().mean().item() if len(Y) > nd else 1.0
             print(f"epoch {ep}: loss {loss.item():.4f} demo acc {dacc:.4f} retention acc {racc:.4f}", flush=True)
             if dacc == 1.0 and racc == 1.0:
                 break
