@@ -152,8 +152,7 @@ function watchPanel(onlyLevel) {
   const stop = running ? `<button class="btn" id="play-stop">&#9632; Stop</button>` : "";
   const st = running ? `<span class="pulse"></span> playing <b>${esc(job?.name)}</b> in Geometry Dash at 1x`
     : job ? `last: ${esc(job.name)} ${job.exit === 0 ? "finished" : "ended (exit " + esc(job.exit) + ")"}` : "Opens the level in GD (launches it if needed) and plays the policy at 1x.";
-  const log = (w.log || []).length && (running || job) ? `<pre class="watchlog">${esc(w.log.join("
-"))}</pre>` : "";
+  const log = (w.log || []).length && (running || job) ? `<pre class="watchlog">${esc(w.log.join("\n"))}</pre>` : "";
   return `<div class="watch"><div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center"><b>Watch in game</b>${btns}${att}${stop}</div>
     <div class="note" style="margin-top:6px">${st}${S.watchErr ? ` &middot; <span style="color:#ff5c7a">${esc(S.watchErr)}</span>` : ""}</div>${log}</div>`;
 }
