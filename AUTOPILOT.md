@@ -629,3 +629,21 @@ powershell -ExecutionPolicy Bypass -File .\overnight.ps1 -Level saved:141625101 
   (gdrl.evaluate, sticky 0). Ledger updated; watch preset `rk_beat`. Mostly
   search: PPO never got off 0% here. ~8.6 h, 8 chained searches of 20 min.
   Next level: GRIEF.
+
+## GRIEF (2026-10-19)
+
+- The original (149992717, length 56,065, ~190k objects) holds 33 StartPos of
+  its own; RESET start_pos k spawns at each (`configs/starts/grief.yaml`,
+  `configs/gd_grief.yaml`, init = the Rauchkammer policy). The popular
+  community copies differ in 700-160,000 objects.
+- Search bug fixed (`segment_search._candidates`): a plan cut at a death tick
+  could end mid-block, so later inputs left the decision_ticks grid. That was
+  where the mixed 4-tick blocks in the BB/RK routes came from.
+- **GRIEF's opening needs 1-tick inputs.** From the level start, strict
+  4-tick and 2-tick searches stalled at x ~460-500 (25 / 20 min; 3,000 random
+  2-tick rollouts from x 377 never passed 456); a 1-tick search passed in a
+  few segments. So the GRIEF policy will need `frame_skip: 1` (demo_bc reads
+  it from the config). Searches run with `DT=1` (scratchpad `seg_gate.py`).
+- 1-tick chain (logs/gr_dt1_<root>.npy, all replay alive from the level
+  start): 845 (root 300) -> 1,270 (600; root 700 replayed dead) -> 2,071
+  (1,150). ~800 units per hour.
