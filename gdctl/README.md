@@ -1,13 +1,11 @@
 # gdctl: drive Geometry Dash from the shell
 
-For AI agents. Every command prints **one JSON object** to stdout and exits
+Every command prints **one JSON object** to stdout and exits
 `0` when `"ok": true`, `1` on failure (`code` and `error` say why) and `2` on
-usage errors (also JSON). Run everything from the repo root with the
-original project's interpreter:
+usage errors (also JSON). Run everything from the repo root:
 
 ```powershell
-cd $HOME\Desktop\geometry-dash-rl-autopilot
-$py = "..\geometry-dash-rl\.venv\Scripts\python.exe"
+$py = ".venv\Scripts\python.exe"
 & $py -m gdctl <command> [options]          # --help on any command
 ```
 
@@ -21,20 +19,20 @@ Two halves:
 
 ## 1. The game lock (mandatory)
 
-Only one agent may drive the game at a time. Before doing anything that
+Only one process may drive the game at a time. Before doing anything that
 changes the game, take the lock; release it when done:
 
 ```powershell
-$env:GDCTL_OWNER = "train-agent-1"            # or pass --owner on every call
-& $py -m gdctl lock acquire --note "overnight training" --wait 600
+$env:GDCTL_OWNER = "trainer"            # or pass --owner on every call
+& $py -m gdctl lock acquire --note "training" --wait 600
 ...
 & $py -m gdctl lock release
 & $py -m gdctl lock status
 ```
 
 ```json
-{"ok": true, "action": "acquired", "held": true, "owner": "train-agent-1", "pid": 1234,
- "host": "LAPTOP", "note": "overnight training", "acquired_at": "2026-10-11 01:02:03",
+{"ok": true, "action": "acquired", "held": true, "owner": "trainer", "pid": 1234,
+ "host": "LAPTOP", "note": "training", "acquired_at": "2026-10-11 01:02:03",
  "age_seconds": 0.0, "stale": false}
 ```
 
@@ -47,8 +45,7 @@ $env:GDCTL_OWNER = "train-agent-1"            # or pass --owner on every call
   search-levels wait-scene focus lock`) always work.
 - `lock release --force` breaks someone else's lock. Don't, unless its owner
   is gone.
-- Also look at `status.user_idle_seconds`: a few seconds means a person is
-  using the PC (possibly playing). Don't take the game from them.
+- `status.user_idle_seconds` shows how long the PC has been idle.
 
 ## 2. Mods and what `build` installs
 
@@ -295,10 +292,10 @@ value resets on restart unless `--persist`), **option get [KEY]** /
 ```powershell
 & $py -m gdctl lock acquire --note training
 & $py -m gdctl prepare-training --level main:1        # or local:gdrl-bloodbath
-& $py -m gdrl.train --config configs/gd_overnight.yaml
+& $py -m gdrl.train --config configs/gd_sm_community.yaml
 ```
 
-**Recover from a crash** (e.g. in a training restart loop)
+**Recover from a crash**
 ```powershell
 & $py -m gdctl status                  # running? responsive?
 & $py -m gdctl logs --crash -n 80      # what happened
@@ -341,6 +338,5 @@ listed in `scene.popups[].buttons`.
 - Opening the editor or editor playtest is not supported (the bridge hooks
   only PlayLayer anyway). `menu --save-editor` exits an editor someone opened.
 - `launch --via exe` needs Steam running and logged in.
-- The person using this laptop may be playing GD. Check `user_idle_seconds`.
 - Back up before bulk edits: `create-level`, `copy-to-local`,
   `set_level_string` and `delete-level` write `CCLocalLevels.dat` right away.

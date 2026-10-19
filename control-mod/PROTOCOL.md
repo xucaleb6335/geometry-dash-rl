@@ -1,8 +1,8 @@
 # GD Agent Control protocol, version 1
 
-The `xucaleb6335.gd-agent-control` mod lets an agent drive Geometry Dash. It
+The `xucaleb6335.gd-agent-control` mod lets scripts drive Geometry Dash. It
 is separate from the RL bridge (`mod/`, port 5555, binary protocol) and does
-not touch its behaviour. Most agents should use the `gdctl` CLI
+not touch its behaviour. Most callers should use the `gdctl` CLI
 (`gdctl/README.md`) rather than speak this protocol directly.
 
 ## Transport

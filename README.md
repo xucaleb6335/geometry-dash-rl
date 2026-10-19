@@ -158,7 +158,7 @@ Train, watch and inspect:
 ```powershell
 python -m gdrl.train --config configs/mock_ppo.yaml          # the mock game, no GD needed
 
-python -m gdctl lock acquire --owner me                      # the real game (see gdctl/README.md)
+python -m gdctl lock acquire                                 # the real game (see gdctl/README.md)
 python -m gdctl prepare-training --level main:1
 python -m gdrl.train --config configs/gd_sm_community.yaml
 python -m gdrl.evaluate --run runs/<run folder>
@@ -170,8 +170,7 @@ python -m gdrl.tools.nn_trace export results/viz/sm.trace.json.gz   # the visual
 ```
 
 Any config value can be overridden on the command line, for example
-`--set seed=2 --set train.total_steps=50000`. Long unattended runs go through
-`overnight.ps1`, which resumes from the newest checkpoint after a crash.
+`--set seed=2 --set train.total_steps=50000`.
 
 ## Repository layout
 
