@@ -56,7 +56,6 @@ one to plot it over the whole run.
 | Stereo Madness | Easy | Beaten, 3/3 greedy runs | PPO with a start-position curriculum (2.4 h, ~14k attempts) |
 | Bloodbath | Extreme demon | Beaten, 3/3 greedy runs | PPO plus search-guided behaviour cloning (~299k attempts) |
 | Rauchkammer | Extreme demon | Beaten, 3/3 greedy runs | Search-guided behaviour cloning (8.6 h) |
-| GRIEF | Extreme demon | In progress: a route to 8.7% | Checkpoint search with 1-tick inputs |
 
 Every run starts at the real level start, not a practice checkpoint. "Greedy"
 means the policy always takes its more likely action.

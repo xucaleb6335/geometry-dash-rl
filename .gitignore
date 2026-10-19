@@ -49,3 +49,5 @@ progress_reports/
 results/m8_mock.md
 holistic_progress/*.md
 AUTOPILOT.md
+configs/gd_grief.yaml
+configs/starts/grief.yaml

@@ -55,9 +55,8 @@ start-position curriculum, and search-guided behaviour cloning.
   along the whole route.
 - Got past multi-hour plateaus at 45% and 99% by tracing them to routes that
   skipped a mode or size portal, and adding mode and size gates to the search.
-- Fixed a search bug that put mixed-timing input blocks into found routes, and
-  showed with controlled 4-, 2- and 1-tick searches that GRIEF needs
-  single-frame input timing.
+- Fixed a search bug that put mixed-timing input blocks into found routes, so
+  every route the search finds can be replayed exactly by the 4-tick policy.
 
 ### Tooling
 
@@ -87,7 +86,6 @@ used only during training.
 | Stereo Madness | easy | beaten, 3/3 greedy | PPO + start-position curriculum |
 | Bloodbath | extreme demon | beaten, 3/3 greedy | PPO + search-guided behaviour cloning |
 | Rauchkammer | extreme demon | beaten, 3/3 greedy | search-guided behaviour cloning |
-| GRIEF | extreme demon | 8.7% route found (in progress) | 1-tick checkpoint search |
 
 Caveats: each policy is trained on one level, so the results show the pipeline
 can master a level, not general skill. On the extreme demons, plain PPO stalled

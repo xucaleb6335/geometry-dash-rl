@@ -1,6 +1,6 @@
 """Play a searched route (per-tick inputs, .npy) in Geometry Dash at ~1x, for watching.
 
-    python -m gdrl.tools.watch_route --level saved:149992717 --route logs/gr_dt1_4200.npy
+    python -m gdrl.tools.watch_route --level saved:10565740 --route configs/demos/bb_start_end_4tick.npy \n        --config configs/gd_bb_community.yaml
 
 Uses the bridge's watch-mode (one STEP per rendered frame). Runs of equal input are
 sent as STEPs of up to 4 ticks (one frame at 60 fps = 4 physics ticks), so the
@@ -22,7 +22,7 @@ def main(argv: list[str] | None = None) -> None:
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     ap.add_argument("--level", required=True, help="saved:<id> or main:<n>")
     ap.add_argument("--route", required=True, help="per-tick inputs (.npy, bool) from the level start")
-    ap.add_argument("--config", default="configs/gd_grief.yaml")
+    ap.add_argument("--config", default="configs/gd_bb_community.yaml")
     ap.add_argument("--speed", type=float, default=1.0)
     a = ap.parse_args(argv)
 
