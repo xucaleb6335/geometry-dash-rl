@@ -647,3 +647,40 @@ powershell -ExecutionPolicy Bypass -File .\overnight.ps1 -Level saved:141625101 
 - 1-tick chain (logs/gr_dt1_<root>.npy, all replay alive from the level
   start): 845 (root 300) -> 1,270 (600; root 700 replayed dead) -> 2,071
   (1,150). ~800 units per hour.
+
+## Network visualizer (2026-10-19)
+
+- `python -m gdrl.tools.nn_trace record <watch preset>` (`rk_beat`, `bb_beat`,
+  `sm`, ...) takes the game lock (owner `viz`), opens the level the way
+  `gdrl.tools.watch` does, plays the greedy policy at full speed and writes
+  the raw states to `logs/viz/<name>.rec.npz` and a trace to
+  `results/viz/<name>.trace.json.gz`: per decision the observation, both
+  hidden layers' tanh activations, logits, value and action, the player
+  state, every object the bridge reported (per-frame view) and which ones
+  filled the 8 slots, plus feature names and the policy weights. `build`
+  rebuilds a trace from a recording without the game, `mock --config
+  --checkpoint` traces a mock level, `export <trace>` writes one offline HTML
+  file with the trace embedded, `list` lists the traces.
+- Open it from the dashboard sidebar ("Network", `http://127.0.0.1:8050/viz`;
+  routes `/api/traces`, `/api/trace?name=`) or open an exported
+  `results/viz/<name>.html` directly. Code: `gdrl/visualizer/` (vanilla JS +
+  canvas, no build step, no network requests).
+- The page: the scene (the frame's report, numbered slot objects, terrain
+  columns, the encoder's field of view, portals inferred where the mode,
+  gravity or size changed), the network (inputs grouped as player / 8 object
+  slots / timing code / terrain / position; 128 + 128 neurons sorted by how
+  they vote; connections are activation x weight, "decision path" or
+  "strongest"), the decision (p(jump), logit gap, V(s)) with a knock-out test
+  (p(jump) with one input group set to 0), and a timeline (mode band, events,
+  p(jump), value; click a neuron to pin it there). Keys: space, arrows,
+  shift+arrows, `[` `]`, J/K presses, N/P events, `?`.
+- Traces recorded 2026-10-19, all completed greedily with recomputed actions
+  matching 100%: Rauchkammer 2,452 decisions (1.5 MB), Bloodbath 6,711
+  (3.4 MB), Stereo Madness 5,083 (2.2 MB, legacy view). The traces are
+  committed; the HTML exports (2-5 MB) are gitignored, rebuild them with
+  `export`.
+- Seen in the traces: on these levels the bridge reports no mode portals, orbs
+  or pads (blocks, slopes, spikes and speed portals only); Rauchkammer's
+  objects move every frame (without the MOVED flag), so the scene draws each
+  frame's own report; the first Rauchkammer state is the reset state (player
+  at y 15) before the level's start position applies.

@@ -16,6 +16,47 @@ from urllib.parse import parse_qs, urlparse
 from .aggregate import Store, clean
 
 STATIC = Path(__file__).resolve().parent / "static"
+TRACE_SUFFIX = ".trace.json.gz"
+
+
+class Traces:
+    """Network-visualizer traces in results/viz (gdrl.tools.nn_trace): the list
+    (meta only, cached per file size and mtime) and the raw gzipped files."""
+
+    def __init__(self, root: Path):
+        self.dir = Path(root) / "results" / "viz"
+        self.cache: dict[str, tuple[tuple[int, int], dict]] = {}
+
+    def path(self, name: str) -> Path | None:
+        if not name or not all(c.isalnum() or c in "-_." for c in name) or name.startswith("."):
+            return None
+        p = (self.dir / (name + TRACE_SUFFIX)).resolve()
+        return p if p.parent == self.dir.resolve() and p.is_file() else None
+
+    def list(self) -> list[dict]:
+        out = []
+        for p in sorted(self.dir.glob("*" + TRACE_SUFFIX)) if self.dir.is_dir() else []:
+            try:
+                st = p.stat()
+            except OSError:
+                continue
+            sig = (st.st_size, st.st_mtime_ns)
+            hit = self.cache.get(p.name)
+            if not hit or hit[0] != sig:
+                try:
+                    m = json.loads(gzip.decompress(p.read_bytes())).get("meta", {})
+                except (OSError, ValueError, EOFError):
+                    continue
+                name = p.name[: -len(TRACE_SUFFIX)]
+                hit = (sig, {"name": name, "title": m.get("title") or name, "level": m.get("level"),
+                             "difficulty": m.get("difficulty"), "decisions": m.get("decisions"),
+                             "completed": m.get("completed"), "progress": m.get("progress"),
+                             "seconds": m.get("seconds"), "recorded_at": m.get("recorded_at"),
+                             "source": m.get("source"), "bytes": st.st_size})
+                self.cache[p.name] = hit
+            out.append(hit[1])
+        # real-game runs first, then by title
+        return sorted(out, key=lambda t: (t.get("source") != "game", str(t.get("title"))))
 
 
 class Watcher:
@@ -85,8 +126,9 @@ class Watcher:
         return {"ok": True}
 
 
-def make_handler(store: Store, watcher: Watcher | None = None):
+def make_handler(store: Store, watcher: Watcher | None = None, traces: Traces | None = None):
     watcher = watcher or Watcher(store.root)
+    traces = traces or Traces(store.root)
 
     class Handler(BaseHTTPRequestHandler):
         server_version = "gdrl-dashboard"
@@ -94,9 +136,12 @@ def make_handler(store: Store, watcher: Watcher | None = None):
         def log_message(self, fmt, *args):  # quiet
             pass
 
-        def _send(self, code: int, body: bytes, ctype: str, extra: dict[str, str] | None = None) -> None:
+        def _send(self, code: int, body: bytes, ctype: str, extra: dict[str, str] | None = None,
+                  gzipped: bool = False) -> None:
             accept = self.headers.get("Accept-Encoding", "")
-            if len(body) > 2048 and "gzip" in accept:
+            if gzipped:  # already gzip: the browser inflates it (every browser sends gzip)
+                extra = {**(extra or {}), "Content-Encoding": "gzip"}
+            elif len(body) > 2048 and "gzip" in accept:
                 body = gzip.compress(body, 3)
                 extra = {**(extra or {}), "Content-Encoding": "gzip"}
             self.send_response(code)
@@ -135,6 +180,18 @@ def make_handler(store: Store, watcher: Watcher | None = None):
                         self._json(d)
                 elif u.path == "/api/watch":
                     self._json(watcher.status())
+                elif u.path in ("/viz", "/viz/"):
+                    from gdrl.visualizer import render_page
+
+                    self._send(200, render_page().encode("utf-8"), "text/html; charset=utf-8")
+                elif u.path == "/api/traces":
+                    self._json(traces.list())
+                elif u.path == "/api/trace":
+                    p = traces.path(q.get("name", [""])[0])
+                    if p is None:
+                        self._json({"error": "unknown trace"}, 404)
+                    else:
+                        self._send(200, p.read_bytes(), "application/json; charset=utf-8", gzipped=True)
                 elif u.path.startswith("/static/"):
                     p = (STATIC / u.path[len("/static/"):]).resolve()
                     if STATIC in p.parents and p.is_file():

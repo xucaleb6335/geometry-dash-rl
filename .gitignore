@@ -34,3 +34,7 @@ Thumbs.db
 *.swp
 *.un~
 *~
+
+# network visualizer: the standalone pages are rebuilt from the traces
+# (python -m gdrl.tools.nn_trace export results/viz/<name>.trace.json.gz)
+results/viz/*.html

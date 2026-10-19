@@ -1,0 +1,162 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>GD-RL Network</title>
+<meta name="description" content="How the Geometry Dash policy network decides, decision by decision.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect x='2' y='2' width='28' height='28' rx='6' fill='%230f0f22'/%3E%3Ccircle cx='9' cy='10' r='3' fill='%234d8dff'/%3E%3Ccircle cx='9' cy='22' r='3' fill='%23ff8a1f'/%3E%3Ccircle cx='23' cy='16' r='4' fill='%2300e5ff'/%3E%3Cpath d='M11.5 10.8L19.4 15M11.5 21.2L19.4 17' stroke='%239a9bc4' stroke-width='1.6'/%3E%3C/svg%3E">
+<style>/*__CSS__*/</style>
+</head>
+<body>
+<div id="app">
+  <header id="bar">
+    <a class="brand" id="home" href="/" title="Back to mission control">
+      <svg viewBox="0 0 40 40" width="32" height="32" aria-hidden="true"><defs><linearGradient id="bgr" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#00e5ff"/><stop offset="1" stop-color="#ff2bd6"/></linearGradient></defs><rect x="3" y="3" width="34" height="34" rx="7" fill="url(#bgr)"/><circle cx="12" cy="13" r="3.4" fill="#0b0b1a"/><circle cx="12" cy="27" r="3.4" fill="#0b0b1a"/><circle cx="28" cy="20" r="4.2" fill="#0b0b1a"/><path d="M15 14.2L24.2 18.6M15 25.8L24.2 21.4" stroke="#0b0b1a" stroke-width="2.2" stroke-linecap="round"/></svg>
+      <div><b>GD-RL</b><span>network</span></div>
+    </a>
+    <div class="ttl">
+      <h1 id="lvl-title">Loading trace</h1>
+      <div id="lvl-sub" class="sub"></div>
+    </div>
+    <span class="spacer"></span>
+    <label class="pick" id="pick-wrap" hidden><span class="sr">Run</span><select id="trace-pick" class="f" aria-label="Recorded run"></select></label>
+    <button class="btn icon" id="btn-help" title="Keyboard shortcuts (?)" aria-label="Keyboard shortcuts">?</button>
+    <button class="btn" id="btn-theme" title="Toggle light / dark">Light</button>
+  </header>
+
+  <main id="stage">
+    <section class="panel" id="scene-panel" aria-label="Game scene">
+      <div class="ph">
+        <h3>Game <small id="scene-sub">what the bridge reports</small></h3>
+        <span class="spacer"></span>
+        <div class="toggles" role="group" aria-label="Scene overlays">
+          <button class="tg on" data-tg="slots" title="Highlight the objects in the encoder's slots">Slots</button>
+          <button class="tg on" data-tg="terrain" title="Terrain-profile columns the encoder samples">Terrain</button>
+          <button class="tg on" data-tg="fov" title="The encoder's field of view">View</button>
+        </div>
+      </div>
+      <div class="canvas-wrap" id="scene-wrap">
+        <canvas id="scene" aria-label="Scene around the player"></canvas>
+        <div class="hud" id="hud"></div>
+        <div class="banner" id="banner" hidden></div>
+      </div>
+    </section>
+
+    <section class="panel" id="net-panel" aria-label="Policy network">
+      <div class="ph">
+        <h3>Policy network <small id="net-sub"></small></h3>
+        <span class="spacer"></span>
+        <div class="seg" id="edge-mode" role="group" aria-label="Connections shown">
+          <button data-v="path" class="on" title="The connections that carry this decision: strongest outputs traced back to the inputs">Decision path</button>
+          <button data-v="top" title="The strongest activation x weight connections of each layer">Strongest</button>
+        </div>
+      </div>
+      <div class="canvas-wrap" id="net-wrap">
+        <canvas id="net" aria-label="Network activations"></canvas>
+      </div>
+      <div class="netlegend">
+        <span class="scale"><i class="neg"></i><span>&minus;1</span><i class="mid"></i><span>0</span><i class="pos"></i><span>+1</span></span>
+        <span>activation / feature value</span>
+        <span class="sep"></span>
+        <span><i class="ln pos"></i>raises the next neuron (toward Jump at the output)</span>
+        <span><i class="ln neg"></i>lowers it (toward Release)</span>
+      </div>
+    </section>
+
+    <aside class="panel" id="side" aria-label="Decision">
+      <div class="dhead">
+        <span class="k">Decision</span>
+        <span id="d-index" class="mono">-</span>
+      </div>
+      <div class="action" id="d-action">
+        <div class="aname" id="d-name">-</div>
+        <div class="asub" id="d-asub"></div>
+      </div>
+      <div class="pbar" id="d-pbar" aria-label="Probability of jump">
+        <div class="track"><i id="d-pfill"></i><b class="thr" title="50%: the greedy policy holds the button above this"></b></div>
+        <div class="plabels"><span>Release</span><span id="d-p" class="mono">-</span><span>Jump</span></div>
+      </div>
+      <div class="kvs">
+        <div><span class="k">logit gap</span><b id="d-logit" class="mono">-</b></div>
+        <div><span class="k">value V(s)</span><b id="d-value" class="mono">-</b></div>
+      </div>
+      <div class="vbar" title="The critic's estimate of the reward still to come (a separate network)"><i id="d-vfill"></i></div>
+      <p class="story" id="story"></p>
+      <h4 title="Each row reruns the network with one input group set to 0 (as if that object or signal were absent) and shows how much p(jump) drops (orange: the group pushes toward Jump) or rises (blue: toward Release).">What it is looking at <small>if hidden: &Delta;p</small></h4>
+      <div id="why" class="why"></div>
+    </aside>
+  </main>
+
+  <section class="panel" id="tl-panel" aria-label="Timeline">
+    <div class="transport">
+      <div class="btns" role="group" aria-label="Playback">
+        <button class="btn icon" id="b-start" title="Start (Home)" aria-label="Go to start"><svg viewBox="0 0 24 24"><path d="M6 5v14M18 6l-9 6 9 6z"/></svg></button>
+        <button class="btn icon" id="b-back" title="Previous decision (Left)" aria-label="Previous decision"><svg viewBox="0 0 24 24"><path d="M15 6l-6 6 6 6"/></svg></button>
+        <button class="btn icon play" id="b-play" title="Play / pause (Space)" aria-label="Play"><svg viewBox="0 0 24 24" id="i-play"><path d="M8 5l11 7-11 7z"/></svg></button>
+        <button class="btn icon" id="b-fwd" title="Next decision (Right)" aria-label="Next decision"><svg viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg></button>
+        <button class="btn icon" id="b-end" title="End (End)" aria-label="Go to end"><svg viewBox="0 0 24 24"><path d="M18 5v14M6 6l9 6-9 6z"/></svg></button>
+      </div>
+      <div class="seg" id="speed" role="group" aria-label="Speed">
+        <button data-v="0.25">0.25&times;</button><button data-v="0.5">0.5&times;</button><button data-v="1" class="on">1&times;</button><button data-v="2">2&times;</button><button data-v="4">4&times;</button><button data-v="8">8&times;</button>
+      </div>
+      <div class="jumps" role="group" aria-label="Jump to">
+        <button class="btn sm" id="b-prevpress" title="Previous press (J)">&#8676; press</button>
+        <button class="btn sm" id="b-nextpress" title="Next press (K)">press &#8677;</button>
+        <button class="btn sm" id="b-nextevent" title="Next portal / mode change (N)">event &#8677;</button>
+      </div>
+      <span class="spacer"></span>
+      <div class="readout mono" id="readout">-</div>
+    </div>
+    <div class="canvas-wrap" id="tl-wrap">
+      <canvas id="tl" aria-label="Timeline: p(jump), value and game mode over the run"></canvas>
+    </div>
+  </section>
+
+  <section class="explain" id="explain">
+    <div class="panel">
+      <h3>How this agent decides</h3>
+      <ol class="steps">
+        <li><span class="n">1</span><div><b>Game state</b><p>Every 4 physics ticks (60 times a second) the bridge mod in Geometry Dash reports the player (height, speed, mode, gravity) and the nearest objects around it: blocks, spikes, portals. Left panel.</p></div></li>
+        <li><span class="n">2</span><div><b>Encoder</b><p id="ex-encoder">The encoder turns that into a fixed list of numbers in [-1, 1], all measured from the player, so the same situation looks the same anywhere in the level.</p></div></li>
+        <li><span class="n">3</span><div><b>Neural network</b><p id="ex-net">Two hidden layers of 128 neurons. Each neuron adds up its inputs times learned weights and squashes the sum with tanh into [-1, 1]: orange is positive, blue negative. The lines show the largest inputs times weights.</p></div></li>
+        <li><span class="n">4</span><div><b>Action</b><p>Two outputs, Release and Jump. Their difference goes through a softmax to give p(jump); the agent holds the button when p(jump) is over 50%. A separate critic network of the same shape estimates the value V(s), the reward still to come; it only matters during training.</p></div></li>
+      </ol>
+    </div>
+    <div class="panel">
+      <h3>Reading the picture</h3>
+      <ul class="read">
+        <li><b>Scene.</b> Numbered outlines are the objects in the encoder's slots (obstacles first, then nearest). The faint columns ahead of the player are the terrain profile: floor height, spikes on it, room overhead. Dimmed objects are known from other frames but not in this frame's report. Portals the bridge does not report are marked where the mode changed.</li>
+        <li><b>Neurons.</b> Each hidden layer is sorted by how its neurons vote: the top rows push toward Release and the bottom rows toward Jump while they are positive (orange), and the other way while negative (blue). Hover one for its inputs; click it to pin it and plot it on the timeline.</li>
+        <li><b>Inputs.</b> Each cell is one number the network sees. The timing code turns the distance to an object's left edge into a bump that slides left as the object approaches: the precise timing signal a small network needs.</li>
+        <li><b>Knock-out test.</b> The panel on the right reruns the network with one input group set to zero, as if that object or signal were absent, and shows how p(jump) moves. It is a what-if, not the training signal.</li>
+        <li><b>Honest caveat.</b> <span id="ex-caveat">These policies are PPO plus behaviour cloning of checkpoint-search routes; on the hard levels they reproduce a learned route rather than react to unseen levels.</span></li>
+      </ul>
+      <div class="meta" id="meta"></div>
+    </div>
+  </section>
+</div>
+
+<div id="tip" role="tooltip"></div>
+<div id="help" class="modal" hidden role="dialog" aria-label="Keyboard shortcuts">
+  <div class="mbox">
+    <button class="x" id="help-x" aria-label="Close">&times;</button>
+    <h3>Keyboard shortcuts</h3>
+    <table>
+      <tr><td><kbd>Space</kbd></td><td>Play / pause</td></tr>
+      <tr><td><kbd>&larr;</kbd> <kbd>&rarr;</kbd></td><td>Previous / next decision</td></tr>
+      <tr><td><kbd>Shift</kbd> + <kbd>&larr;</kbd> <kbd>&rarr;</kbd></td><td>Back / forward 1 second (60 decisions)</td></tr>
+      <tr><td><kbd>Home</kbd> <kbd>End</kbd></td><td>Start / end of the run</td></tr>
+      <tr><td><kbd>[</kbd> <kbd>]</kbd></td><td>Slower / faster</td></tr>
+      <tr><td><kbd>J</kbd> <kbd>K</kbd></td><td>Previous / next button press</td></tr>
+      <tr><td><kbd>N</kbd> <kbd>P</kbd></td><td>Next / previous portal or mode change</td></tr>
+      <tr><td><kbd>E</kbd></td><td>Edges: decision path / strongest</td></tr>
+      <tr><td><kbd>Esc</kbd></td><td>Unpin the pinned neuron / close this</td></tr>
+    </table>
+    <p class="note">Click a neuron or an input cell to pin it: the timeline then plots its value over the whole run. Scroll on the scene to zoom.</p>
+  </div>
+</div>
+<!--__TRACE__-->
+<script>/*__JS__*/</script>
+</body>
+</html>

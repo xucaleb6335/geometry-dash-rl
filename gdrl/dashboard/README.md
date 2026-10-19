@@ -1,6 +1,6 @@
 # GD-RL dashboard
 
-Local training dashboard: read-only, except the Play buttons, which run `python -m gdrl.tools.watch` (a policy from `configs/watch.yaml`, played in GD at 1x; POST `/api/watch/start`, `/api/watch/stop`, status at `/api/watch`, output in `logs/watch.log`). Real-game levels only; `--mock` adds the mock levels, mock runs and the mock agent comparison. No installs, no network: stdlib server plus a vanilla JS app (no libraries).
+Local training dashboard: read-only, except the Play buttons, which run `python -m gdrl.tools.watch` (a policy from `configs/watch.yaml`, played in GD at 1x; POST `/api/watch/start`, `/api/watch/stop`, status at `/api/watch`, output in `logs/watch.log`). Real-game levels only; `--mock` adds the mock levels, mock runs and the mock agent comparison. The sidebar's Network entry opens the network visualizer at `/viz` (`gdrl/visualizer`; traces from `results/viz/*.trace.json.gz` via `/api/traces` and `/api/trace?name=`, recorded with `python -m gdrl.tools.nn_trace`). No installs, no network: stdlib server plus a vanilla JS app (no libraries).
 
 ```powershell
 $env:CUDA_VISIBLE_DEVICES = "-1"
@@ -23,6 +23,7 @@ Run it from the project root. The page polls `/api/state` every 4 s (only re-ren
 | `holistic_progress/level_beats.csv` | beat ledger, "beaten" status and beat time |
 | `results/**/*.json` | agent comparison (files without an `agent` key are skipped) |
 | `logs/*.log` | running/finished/crashed hints (UTF-8, UTF-16 or mixed) |
+| `results/viz/*.trace.json.gz` | network visualizer traces (`/viz`) |
 
 Status: a run is *running* while its files changed in the last 3 minutes; *finished* with `final.pt`, `result.json`,
 `eval.json` or all steps done; *crashed* when a later run resumed from it or its log shows an error; else *stopped*.

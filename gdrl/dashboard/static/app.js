@@ -35,6 +35,10 @@ const NAV = [
   ["live", "Live feed", "M3 12h4l3-8 4 16 3-8h4"],
 ];
 const VIEWS = NAV.map(n => n[0]);
+// Pages outside the hash router (served by the dashboard server; hidden in snapshots).
+const LINKS = [
+  ["/viz", "Network", "M5 4.5a2 2 0 110 4 2 2 0 010-4zM5 15.5a2 2 0 110 4 2 2 0 010-4zM19 10a2 2 0 110 4 2 2 0 010-4zM7 7l10 4M7 17l10-4M5 8.5v7", "Watch the policy network decide, decision by decision"],
+];
 
 /* ------------------------------------------------------------------ state */
 const S = {
@@ -211,7 +215,8 @@ function ledgerPass(b) {
 function renderNav() {
   const hide = new Set();
   if (S.state && !(S.state.compare?.rows || []).length) hide.add("compare");
-  $("#nav").innerHTML = NAV.filter(n => !hide.has(n[0])).map(([id, label, d]) => `<a data-v="${id}" class="${S.view === id ? "on" : ""}" href="#${id}"><svg viewBox="0 0 24 24"><path d="${d}"/></svg><span>${label}</span></a>`).join("");
+  $("#nav").innerHTML = NAV.filter(n => !hide.has(n[0])).map(([id, label, d]) => `<a data-v="${id}" class="${S.view === id ? "on" : ""}" href="#${id}"><svg viewBox="0 0 24 24"><path d="${d}"/></svg><span>${label}</span></a>`).join("")
+    + (SNAP ? "" : LINKS.map(([href, label, d, title]) => `<a href="${href}" title="${esc(title)}"><svg viewBox="0 0 24 24"><path d="${d}"/></svg><span>${label}</span></a>`).join(""));
 }
 function renderLivebox() {
   const st = S.state; if (!st) return;
