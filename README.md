@@ -21,6 +21,34 @@ PPO written from scratch in PyTorch.
   the button and orange while it lets go.
 </p>
 
+## Inside the network
+
+<!-- Video B. For an inline player on GitHub: drag docs/media/stereo-madness-network.mp4
+     into the editor on github.com and put the github.com/user-attachments/... URL it
+     inserts in place of this block. -->
+<p align="center">
+  <a href="docs/media/stereo-madness-network.mp4">
+    <img src="docs/media/stereo-madness-network.jpg" width="900" alt="The network visualizer replaying the Stereo Madness run: the game panel, the 234 input features, both hidden layers, the outputs and the run timeline">
+  </a>
+</p>
+<p align="center">
+  <b>The same Stereo Madness run, replayed in the network visualizer</b>
+  (<a href="docs/media/stereo-madness-network.mp4">full run, 87 s</a>).
+</p>
+
+This video starts and ends at the same moments as the gameplay video
+above, so the two line up second for second. Pause it anywhere to read a single
+decision. On the left is the game as the encoder sees it. In the middle are all
+234 inputs, both hidden layers and the two outputs, with the strongest
+input-times-weight connections drawn between them. On the right is the decision
+and a knock-out test that names the input group driving it. Colours follow
+TensorFlow Playground: orange is negative, blue is positive.
+
+To explore it yourself, run `python -m gdrl.dashboard` and open
+http://127.0.0.1:8050/viz, or open an exported `results/viz/<level>.html`. You
+can step decision by decision, hover any neuron to see its inputs, and click
+one to plot it over the whole run.
+
 ## Results
 
 | Level | Difficulty | Result | How |
@@ -184,31 +212,3 @@ More detail: [PROJECT_SUMMARY.md](PROJECT_SUMMARY.md) for highlights,
 [AUTOPILOT.md](AUTOPILOT.md) for the dated engineering log, and
 [gdctl/README.md](gdctl/README.md) and
 [gdrl/dashboard/README.md](gdrl/dashboard/README.md) for the tools.
-
-## Inside the network
-
-<!-- Video B. For an inline player on GitHub: drag docs/media/stereo-madness-network.mp4
-     into the editor on github.com and put the github.com/user-attachments/... URL it
-     inserts in place of this block. -->
-<p align="center">
-  <a href="docs/media/stereo-madness-network.mp4">
-    <img src="docs/media/stereo-madness-network.jpg" width="900" alt="The network visualizer replaying the Stereo Madness run: the game panel, the 234 input features, both hidden layers, the outputs and the run timeline">
-  </a>
-</p>
-<p align="center">
-  <b>The same Stereo Madness run, replayed in the network visualizer</b>
-  (<a href="docs/media/stereo-madness-network.mp4">full run, 87 s</a>).
-</p>
-
-This video starts and ends at the same moments as the gameplay video at the
-top, so the two line up second for second. Pause it anywhere to read a single
-decision. On the left is the game as the encoder sees it. In the middle are all
-234 inputs, both hidden layers and the two outputs, with the strongest
-input-times-weight connections drawn between them. On the right is the decision
-and a knock-out test that names the input group driving it. Colours follow
-TensorFlow Playground: orange is negative, blue is positive.
-
-To explore it yourself, run `python -m gdrl.dashboard` and open
-http://127.0.0.1:8050/viz, or open an exported `results/viz/<level>.html`. You
-can step decision by decision, hover any neuron to see its inputs, and click
-one to plot it over the whole run.
