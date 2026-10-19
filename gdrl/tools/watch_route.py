@@ -1,6 +1,7 @@
 """Play a searched route (per-tick inputs, .npy) in Geometry Dash at ~1x, for watching.
 
-    python -m gdrl.tools.watch_route --level saved:10565740 --route configs/demos/bb_start_end_4tick.npy \n        --config configs/gd_bb_community.yaml
+    python -m gdrl.tools.watch_route --level saved:10565740 --route configs/demos/bb_start_end_4tick.npy \\
+        --config configs/gd_bb_community.yaml
 
 Uses the bridge's watch-mode (one STEP per rendered frame). Runs of equal input are
 sent as STEPs of up to 4 ticks (one frame at 60 fps = 4 physics ticks), so the
