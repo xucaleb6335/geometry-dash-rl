@@ -1,5 +1,0 @@
-{
-  "level": "main:1",
-  "config": "configs/gd_curriculum.yaml",
-  "run_filter": "*gd-curriculum-sm*"
-}
