@@ -608,3 +608,13 @@ powershell -ExecutionPolicy Bypass -File .\overnight.ps1 -Level saved:141625101 
   ```powershell
   powershell -ExecutionPolicy Bypass -File .\overnight.ps1 -Level saved:147032152 -Config configs/gd_rk_community.yaml -RunFilter "*gd-rk-community*"
   ```
+- 2026-10-18 19:00 - 2026-10-19 00:30: PPO from the Bloodbath policy got 0%
+  on every Rauchkammer start, so progress is search-driven (scratchpad
+  `seg_gate.py` with the previous route as prefix, then keep only roots whose
+  route replays alive from the level start). Valid routes (logs/, not
+  committed): x 4,859 -> 6,726 (root 4,400; root 4,550 replayed dead) ->
+  8,386 (root 6,250) -> 10,102 (root 8,250, `logs/rk_8250.npy`, wave at the
+  end, 0 mixed 4-tick blocks). Ship-section roots 8,100 / 8,200 were inexact
+  (8,100's route reached 10,190 but replays dead at 8,249 every time).
+  Gates used: ship 7,000-9,200, wave 9,320-13,000, mini 11,000-11,150,
+  normal 11,250-13,000.
