@@ -8,11 +8,11 @@ PPO written from scratch in PyTorch.
 <!-- Video A. For an inline player on GitHub: edit this file on github.com, drag
      docs/media/stereo-madness-agent-view.mp4 into the editor, and put the
      github.com/user-attachments/... URL it inserts in place of this block. -->
-<p align="center">
-  <a href="docs/media/stereo-madness-agent-view.mp4">
-    <img src="docs/media/stereo-madness-agent-view.gif" width="760" alt="The trained agent playing Stereo Madness, with the hitboxes it sees, the eight objects its encoder looks at and its path drawn into the game">
-  </a>
-</p>
+
+
+https://github.com/user-attachments/assets/0e30557d-895b-42b5-aad1-587002e70c05
+
+
 <p align="center">
   <b>Stereo Madness, completed by the trained policy in real time</b>
   (<a href="docs/media/stereo-madness-agent-view.mp4">full run, 87 s</a>).<br>
@@ -26,11 +26,11 @@ PPO written from scratch in PyTorch.
 <!-- Video B. For an inline player on GitHub: drag docs/media/stereo-madness-network.mp4
      into the editor on github.com and put the github.com/user-attachments/... URL it
      inserts in place of this block. -->
-<p align="center">
-  <a href="docs/media/stereo-madness-network.mp4">
-    <img src="docs/media/stereo-madness-network.jpg" width="900" alt="The network visualizer replaying the Stereo Madness run: the game panel, the 234 input features, both hidden layers, the outputs and the run timeline">
-  </a>
-</p>
+
+
+https://github.com/user-attachments/assets/3ea0e020-ca69-4150-8bac-6ba500764a95
+
+
 <p align="center">
   <b>The same Stereo Madness run, replayed in the network visualizer</b>
   (<a href="docs/media/stereo-madness-network.mp4">full run, 87 s</a>).
